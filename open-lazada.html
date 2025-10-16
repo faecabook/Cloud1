@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Open Lazada App</title>
+  <style>
+    :root{--bg:#0b74da;--card:#fff;--accent:#ff6f61}
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans","Helvetica Neue",Arial}
+    body{display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#e9f2ff,#fff);padding:24px}
+    .card{background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(10,10,10,0.08);padding:28px;max-width:480px;width:100%;text-align:center}
+    h1{margin:0 0 8px;font-size:20px;color:#111}
+    p{margin:0 0 18px;color:#444}
+    button{background:linear-gradient(90deg,var(--bg),#0066c8);color:white;border:0;padding:14px 18px;border-radius:10px;font-size:16px;cursor:pointer}
+    small{display:block;margin-top:12px;color:#666}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>เปิดแอป Lazada</h1>
+    <p>กดปุ่มด้านล่างเพื่อเปิดแอป Lazada ถ้าไม่มีแอป ระบบจะนำไปยังหน้าดาวน์โหลด/เว็บ</p>
+
+    <button id="open-btn">เปิด Lazada App</button>
+    <small id="status">รองรับ iOS / Android — หากการเปิดล้มเหลว ระบบจะพาไปยังหน้าดาวน์โหลด</small>
+  </div>
+
+<script>
+/*
+  กลไกการทำงาน (สรุป):
+  1. ตรวจหา platform เบื้องต้น (iOS / Android / อื่น)
+  2. พยายามเปิดผ่าน scheme 'lazada://' (สำหรับ iOS/บาง Android)
+  3. บน Android เพิ่มการลองด้วย intent:// ซึ่งเป็นวิธีที่มักใช้เปิดแอปโดยตรงผ่าน Chrome
+  4. ถ้าไม่สำเร็จ (ผู้ใช้ไม่มีแอป หรือเบราว์เซอร์ไม่อนุญาต) จะ redirect ไปยัง Play Store / App Store / หรือเว็บของ Lazada
+  NOTE: store links สามารถแก้ไขให้เป็นลิงก์ประเทศที่ต้องการได้
+*/
+
+const btn = document.getElementById('open-btn');
+const status = document.getElementById('status');
+
+// ใส่ลิงก์ fallback ที่ต้องการ (แก้เป็นลิงก์ประเทศหรือหน้าโปรโมชันที่ต้องการได้)
+const playStore = 'https://play.google.com/store/apps/details?id=com.lazada.android'; // Android
+const appStore  = 'https://apps.apple.com/th/app/lazada-shopping/id545007410'; // iOS (ปรับได้)
+const webFallback = 'https://www.lazada.co.th/';
+
+function isAndroid() {
+  return /Android/i.test(navigator.userAgent);
+}
+function isIOS() {
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
+}
+
+function openApp() {
+  // เวลาในการรอถ้า app ไม่ถูกเปิด (ms)
+  const timeout = 1500;
+  const start = Date.now();
+  let didOpen = false;
+
+  // ตัวช่วยตรวจว่าหน้าต่างเปลี่ยน (บางเบราว์เซอร์จะ change visibility เมื่อเปิดแอป)
+  const onVisibilityChange = () => {
+    if (document.hidden || document.visibilityState === 'hidden') {
+      didOpen = true;
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
+
+  // สำหรับ Android: ใช้ intent: (Chrome รองรับ)
+  if (isAndroid()) {
+    // Intent แบบมาตรฐาน — ถ้าเปิดสำเร็จจะเปิดแอปโดยตรง
+    // ถ้าไม่รองรับ intent หรือแอปไม่มีจะยิงไป Play Store (Chrome บางเวอร์ชันจะจัดการ fallback ให้)
+    const intentUrl = 'intent://open#Intent;scheme=lazada;package=com.lazada.android;end';
+    window.location = intentUrl;
+  } else {
+    // พยายามเปิด custom scheme (iOS / Android เบราว์เซอร์อื่น ๆ)
+    const scheme = 'lazada://';
+    // สร้าง iframe วิธีเก่าเพื่อพยายามเรียก scheme (บางเบราว์เซอร์จะบล็อก แต่ยังพอใช้งานได้ในบางกรณี)
+    const ifr = document.createElement('iframe');
+    ifr.style.display = 'none';
+    ifr.src = scheme;
+    document.body.appendChild(ifr);
+
+    // ล้าง iframe หลังช่วงเวลาสั้น ๆ
+    setTimeout(() => {
+      try { document.body.removeChild(ifr); } catch(e){}
+    }, 2000);
+  }
+
+  // หลัง timeout ถ้าไม่ได้เปิด ให้ redirect ไปดาวน์โหลด/fallback
+  setTimeout(() => {
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    if (didOpen) {
+      status.textContent = 'เปิดแอปสำเร็จ ✓';
+      return;
+    }
+    const elapsed = Date.now() - start;
+    // บาง browser จะเปลี่ยน location ทิ้งทันที (เช่น intent) — ตรวจสอบ elapsed
+    if (elapsed < timeout + 500 && !didOpen) {
+      // ยังไม่ได้เปิด app — ให้ไปยัง store หรือเว็บ
+      if (isAndroid()) {
+        status.textContent = 'ไม่พบแอปบนเครื่อง — จะไปที่ Play Store';
+        window.location = playStore;
+      } else if (isIOS()) {
+        status.textContent = 'ไม่พบแอปบนเครื่อง — จะไปที่ App Store';
+        window.location = appStore;
+      } else {
+        status.textContent = 'ไม่สามารถเปิดแอป — จะไปที่เว็บ Lazada';
+        window.location = webFallback;
+      }
+    } else {
+      status.textContent = 'ถัดไป...';
+    }
+  }, timeout);
+}
+
+btn.addEventListener('click', (e) => {
+  e.preventDefault();
+  status.textContent = 'กำลังพยายามเปิดแอป...';
+  openApp();
+});
+</script>
+</body>
+</html>
