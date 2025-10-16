@@ -1,121 +1,23 @@
+<!-- redirect.html -->
 <!doctype html>
 <html lang="th">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>เปิดร้าน Lazada ของฉัน</title>
-  <style>
-    :root {
-      --bg:#0b74da; --card:#fff; --accent:#ff6f61;
-    }
-    html,body {
-      height:100%; margin:0;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
-      background: linear-gradient(180deg, #e9f2ff, #fff);
-      display: flex; align-items: center; justify-content: center;
-      padding: 24px;
-    }
-    .card {
-      background: var(--card);
-      border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(10,10,10,0.08);
-      padding: 28px;
-      max-width: 460px; width: 100%;
-      text-align: center;
-    }
-    h1 { margin: 0 0 10px; font-size: 20px; color: #111; }
-    p { margin: 0 0 20px; color: #444; line-height: 1.5; }
-    button {
-      background: linear-gradient(90deg, var(--bg), #0066c8);
-      color: white; border: none; border-radius: 10px;
-      padding: 14px 20px; font-size: 16px; cursor: pointer;
-      transition: transform 0.15s ease;
-    }
-    button:hover { transform: scale(1.05); }
-    small { display: block; margin-top: 12px; color: #666; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>กำลังเปิดแอป Lazada...</title>
+<meta http-equiv="refresh" content="1.5;url=https://s.lazada.co.th/s.ZaRsJP?cc">
+<script>
+window.onload = function() {
+  // พยายามเปิดแอป
+  window.location = 'lazada://';
+  // fallback จะเกิดจาก meta refresh
+};
+</script>
+<style>
+body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;background:#fafafa}
+</style>
 </head>
 <body>
-  <div class="card">
-    <h1>เปิดร้าน Lazada ของฉัน</h1>
-    <p>กดปุ่มด้านล่างเพื่อเปิดร้านของฉันในแอป Lazada  
-       ถ้าไม่มีแอป ระบบจะพาไปยังหน้าร้านในเว็บอัตโนมัติ</p>
-
-    <button id="open-btn">เปิดร้านใน Lazada</button>
-    <small id="status">รองรับ iOS / Android</small>
-  </div>
-
-<script>
-const btn = document.getElementById('open-btn');
-const status = document.getElementById('status');
-
-// 🔗 ลิงก์ร้าน Lazada ของคุณ
-const shopUrl = 'https://spf.shopee.co.th/3qE54izaGj';
-
-// 🔗 Fallback
-const playStore = 'https://play.google.com/store/apps/details?id=com.lazada.android';
-const appStore  = 'https://apps.apple.com/th/app/lazada-shopping/id545007410';
-
-function isAndroid() {
-  return /Android/i.test(navigator.userAgent);
-}
-function isIOS() {
-  return /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
-}
-
-function openLazadaShop() {
-  const timeout = 1500;
-  const start = Date.now();
-  let didOpen = false;
-
-  const onVisibilityChange = () => {
-    if (document.hidden || document.visibilityState === 'hidden') {
-      didOpen = true;
-    }
-  };
-  document.addEventListener('visibilitychange', onVisibilityChange);
-
-  // 🟦 Android: ใช้ intent://open
-  if (isAndroid()) {
-    const intentUrl = `intent://${shopUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.lazada.android;end`;
-    window.location = intentUrl;
-  } else {
-    // 🟦 iOS / browser อื่น
-    const ifr = document.createElement('iframe');
-    ifr.style.display = 'none';
-    ifr.src = `lazada://`;
-    document.body.appendChild(ifr);
-    setTimeout(() => { try { document.body.removeChild(ifr); } catch(e){} }, 2000);
-  }
-
-  // 🕒 fallback หลัง timeout
-  setTimeout(() => {
-    document.removeEventListener('visibilitychange', onVisibilityChange);
-    if (didOpen) {
-      status.textContent = 'เปิดแอปสำเร็จ ✓';
-      return;
-    }
-    const elapsed = Date.now() - start;
-    if (elapsed < timeout + 500 && !didOpen) {
-      if (isAndroid()) {
-        status.textContent = 'ไม่พบแอป Lazada — กำลังไปยังเว็บร้าน...';
-        window.location = shopUrl;
-      } else if (isIOS()) {
-        status.textContent = 'ไม่พบแอป Lazada — กำลังไปยังเว็บร้าน...';
-        window.location = shopUrl;
-      } else {
-        status.textContent = 'กำลังไปยังร้านในเว็บ Lazada...';
-        window.location = shopUrl;
-      }
-    }
-  }, timeout);
-}
-
-btn.addEventListener('click', (e) => {
-  e.preventDefault();
-  status.textContent = 'กำลังเปิดร้านใน Lazada...';
-  openLazadaShop();
-});
-</script>
+  <h2>กำลังเปิดร้านในแอป Lazada...</h2>
 </body>
 </html>
