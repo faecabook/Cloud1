@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ร้าน Lazada ของฉัน</title>
+  <title>ร้าน Shopee ของฉัน</title>
   <style>
     body {
       margin: 0; padding: 0;
       font-family: "Noto Sans Thai", sans-serif;
       display: flex; align-items: center; justify-content: center;
       min-height: 100vh;
-      background: linear-gradient(135deg, #d9ebff, #ffffff);
+      background: linear-gradient(135deg, #ffe1e1, #ffffff);
     }
-    .container {
+    .card {
       background: #fff;
       border-radius: 16px;
       padding: 32px 24px;
@@ -20,18 +20,18 @@
       max-width: 400px; text-align: center;
     }
     h1 {
-      color: #0b74da; margin-bottom: 12px; font-size: 1.5rem;
+      color: #ee4d2d; margin-bottom: 12px; font-size: 1.6rem;
     }
     p {
-      color: #444; margin-bottom: 20px; line-height: 1.5;
+      color: #444; margin-bottom: 20px; line-height: 1.6;
     }
-    button {
-      background: linear-gradient(90deg, #0b74da, #0066c8);
-      color: #fff; border: none; padding: 14px 20px;
+    a button {
+      background: linear-gradient(90deg, #ee4d2d, #d73211);
+      color: #fff; border: none; padding: 14px 22px;
       font-size: 1rem; border-radius: 10px;
       cursor: pointer; transition: 0.2s;
     }
-    button:hover {
+    a button:hover {
       transform: scale(1.05);
     }
     small {
@@ -40,16 +40,12 @@
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>ร้าน Lazada ของฉัน</h1>
-    <p>กดปุ่มด้านล่างเพื่อเปิดร้านของฉันในแอป Lazada  
-       ถ้าไม่มีแอป ระบบจะพาไปยังหน้าร้านในเว็บโดยอัตโนมัติ</p>
-
-    <!-- 🔗 เปิด redirect.html ในแท็บใหม่ -->
-    <a href="redirect2.html" target="_blank">
-      <button>เปิดร้านใน Lazada</button>
+  <div class="card">
+    <h1>ร้าน Shopee ของฉัน</h1>
+    <p>กดปุ่มด้านล่างเพื่อเข้าสู่หน้าสำหรับเปิดร้านของฉันในแอป Shopee</p>
+    <a href="open.html">
+      <button>ไปต่อ</button>
     </a>
-
     <small>รองรับทั้ง iOS และ Android</small>
   </div>
 </body>
