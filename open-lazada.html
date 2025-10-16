@@ -3,13 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ร้าน Shopee ของฉัน</title>
-  <meta http-equiv="refresh" content="1; url=redirect2.html">
+  <title>กำลังเปิดร้าน Shopee ของฉัน...</title>
   <style>
     body {
-      margin: 0; padding: 0;
+      margin: 0;
+      padding: 0;
       font-family: "Noto Sans Thai", sans-serif;
-      display: flex; align-items: center; justify-content: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       min-height: 100vh;
       background: linear-gradient(135deg, #ffe1e1, #ffffff);
     }
@@ -18,30 +20,34 @@
       border-radius: 16px;
       padding: 32px 24px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-      max-width: 400px; text-align: center;
+      max-width: 400px;
+      text-align: center;
     }
     h1 {
-      color: #ee4d2d; margin-bottom: 12px; font-size: 1.6rem;
+      color: #ee4d2d;
+      margin-bottom: 12px;
+      font-size: 1.6rem;
     }
     p {
-      color: #444; margin-bottom: 20px; line-height: 1.6;
-    }
-    .loading {
-      color: #ee4d2d;
-      font-weight: bold;
-      animation: blink 1s infinite;
-    }
-    @keyframes blink {
-      0%, 50%, 100% { opacity: 1; }
-      25%, 75% { opacity: 0.3; }
+      color: #444;
+      margin-bottom: 20px;
+      line-height: 1.6;
     }
   </style>
+
+  <script>
+    // รอ 1 วินาทีแล้วเปิดหน้าใหม่ชื่อ redirect2.html
+    window.onload = function() {
+      setTimeout(function() {
+        window.open("redirect2.html", "_blank");
+      }, 1000);
+    };
+  </script>
 </head>
 <body>
   <div class="card">
-    <h1>ร้าน Shopee ของฉัน</h1>
-    <p>กำลังนำคุณไปยังหน้าร้าน...</p>
-    <div class="loading">กำลังโหลด...</div>
+    <h1>กำลังเปิดหน้าร้าน...</h1>
+    <p>กรุณารอสักครู่ ระบบกำลังเปิดหน้าร้าน Shopee ของคุณ</p>
   </div>
 </body>
 </html>
