@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>ร้าน Shopee ของฉัน</title>
+  <meta http-equiv="refresh" content="1; url=open.html">
   <style>
     body {
       margin: 0; padding: 0;
@@ -25,28 +26,22 @@
     p {
       color: #444; margin-bottom: 20px; line-height: 1.6;
     }
-    a button {
-      background: linear-gradient(90deg, #ee4d2d, #d73211);
-      color: #fff; border: none; padding: 14px 22px;
-      font-size: 1rem; border-radius: 10px;
-      cursor: pointer; transition: 0.2s;
+    .loading {
+      color: #ee4d2d;
+      font-weight: bold;
+      animation: blink 1s infinite;
     }
-    a button:hover {
-      transform: scale(1.05);
-    }
-    small {
-      display: block; margin-top: 12px; color: #666;
+    @keyframes blink {
+      0%, 50%, 100% { opacity: 1; }
+      25%, 75% { opacity: 0.3; }
     }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>ร้าน Shopee ของฉัน</h1>
-    <p>กดปุ่มด้านล่างเพื่อเข้าสู่หน้าสำหรับเปิดร้านของฉันในแอป Shopee</p>
-    <a href="redirect2.html">
-      <button>ไปต่อ</button>
-    </a>
-    <small>รองรับทั้ง iOS และ Android</small>
+    <p>กำลังนำคุณไปยังหน้าร้าน...</p>
+    <div class="loading">กำลังโหลด...</div>
   </div>
 </body>
 </html>
