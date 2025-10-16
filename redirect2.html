@@ -3,47 +3,88 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>กำลังเปิดร้าน Lazada...</title>
-
-  <!-- ⏳ ถ้าเปิดแอปไม่สำเร็จใน 1.5 วิ ให้เด้งไปหน้าร้าน -->
-  <meta http-equiv="refresh" content="1.5;url=https://s.lazada.co.th/s.ZaRsJP?cc">
-
-  <script>
-    // เมื่อหน้าโหลด → พยายามเปิดแอป Lazada
-    window.onload = function() {
-      // ลองเปิดแอป Lazada (deep link)
-      window.location = 'lazada://';
-      // ถ้าไม่มีแอป ระบบจะ fallback ตาม meta refresh ด้านบน
-    };
-  </script>
-
+  <title>เปิดร้าน Shopee ของฉัน</title>
   <style>
     body {
       font-family: "Noto Sans Thai", sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
       min-height: 100vh;
-      background: linear-gradient(180deg, #f5f9ff, #fff);
+      background: linear-gradient(180deg, #fff5f2, #fff);
       text-align: center;
     }
     img {
       width: 90px; margin-bottom: 16px;
     }
     h2 {
-      color: #0b74da; font-size: 1.3rem; margin: 0 0 10px;
+      color: #ee4d2d; font-size: 1.4rem; margin: 0 0 10px;
     }
     p {
-      color: #555; font-size: 0.95rem; margin: 0;
+      color: #555; font-size: 1rem; margin: 0 0 20px;
+      line-height: 1.5;
     }
+    button {
+      background: linear-gradient(90deg, #ee4d2d, #d73211);
+      color: white; border: none; border-radius: 10px;
+      padding: 14px 20px; font-size: 1rem; cursor: pointer;
+      transition: transform 0.2s;
+    }
+    button:hover { transform: scale(1.05); }
+    small { display:block; margin-top:14px; color:#777; }
   </style>
 </head>
 <body>
-  <!-- 🛍 โลโก้ Lazada (หรือจะเปลี่ยนเป็นโลโก้ร้านคุณก็ได้) -->
-  <img src="https://img.alicdn.com/imgextra/i1/O1CN01YMCe2E1V1UmZfuhE8_!!6000000002567-2-tps-800-800.png" alt="Lazada Logo">
+  <img src="https://cdn-icons-png.flaticon.com/512/3670/3670322.png" alt="Shopee Logo">
+  <h2>เปิดร้านของฉันในแอป Shopee</h2>
+  <p>กดปุ่มด้านล่างเพื่อเปิดร้านในแอป Shopee  
+     ถ้าไม่มีแอป ระบบจะพาคุณไปยังหน้าร้านในเว็บอัตโนมัติ</p>
 
-  <h2>กำลังเปิดร้านของคุณในแอป Lazada...</h2>
-  <p>หากไม่มีแอป ระบบจะพาคุณไปยังหน้าร้านในเว็บภายในไม่กี่วินาที</p>
+  <button id="openApp">เปิดในแอป Shopee</button>
+  <small id="status"></small>
+
+  <script>
+    const button = document.getElementById('openApp');
+    const status = document.getElementById('status');
+    const shopUrl = 'https://s.shopee.co.th/7KoJhT5zjg';
+
+    function isAndroid() { return /Android/i.test(navigator.userAgent); }
+    function isIOS() { return /iPhone|iPad|iPod/i.test(navigator.userAgent); }
+
+    button.addEventListener('click', function() {
+      status.textContent = 'กำลังพยายามเปิดแอป Shopee...';
+      const timeout = 1500;
+      const start = Date.now();
+      let opened = false;
+
+      const handleVisibility = () => {
+        if (document.hidden) opened = true;
+      };
+      document.addEventListener('visibilitychange', handleVisibility);
+
+      if (isAndroid()) {
+        // ใช้ intent บน Android
+        const intentUrl = 'intent://open#Intent;scheme=shopee;package=com.shopee.th;end';
+        window.location = intentUrl;
+      } else {
+        // ใช้ scheme สำหรับ iOS
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = 'shopee://';
+        document.body.appendChild(iframe);
+        setTimeout(() => { try { document.body.removeChild(iframe); } catch(e){} }, 2000);
+      }
+
+      // fallback
+      setTimeout(() => {
+        document.removeEventListener('visibilitychange', handleVisibility);
+        if (!opened) {
+          status.textContent = 'ไม่พบแอป Shopee — กำลังไปยังเว็บร้าน...';
+          window.location = shopUrl;
+        } else {
+          status.textContent = 'เปิดแอปสำเร็จ ✓';
+        }
+      }, timeout);
+    });
+  </script>
 </body>
 </html>
