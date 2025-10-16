@@ -1,23 +1,56 @@
-<!-- redirect.html -->
 <!doctype html>
 <html lang="th">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>กำลังเปิดแอป Lazada...</title>
-<meta http-equiv="refresh" content="1.5;url=https://s.lazada.co.th/s.ZaRsJP?cc">
-<script>
-window.onload = function() {
-  // พยายามเปิดแอป
-  window.location = 'lazada://';
-  // fallback จะเกิดจาก meta refresh
-};
-</script>
-<style>
-body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;background:#fafafa}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ร้าน Lazada ของฉัน</title>
+  <style>
+    body {
+      margin: 0; padding: 0;
+      font-family: "Noto Sans Thai", sans-serif;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #d9ebff, #ffffff);
+    }
+    .container {
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      max-width: 400px; text-align: center;
+    }
+    h1 {
+      color: #0b74da; margin-bottom: 12px; font-size: 1.5rem;
+    }
+    p {
+      color: #444; margin-bottom: 20px; line-height: 1.5;
+    }
+    button {
+      background: linear-gradient(90deg, #0b74da, #0066c8);
+      color: #fff; border: none; padding: 14px 20px;
+      font-size: 1rem; border-radius: 10px;
+      cursor: pointer; transition: 0.2s;
+    }
+    button:hover {
+      transform: scale(1.05);
+    }
+    small {
+      display: block; margin-top: 12px; color: #666;
+    }
+  </style>
 </head>
 <body>
-  <h2>กำลังเปิดร้านในแอป Lazada...</h2>
+  <div class="container">
+    <h1>ร้าน Lazada ของฉัน</h1>
+    <p>กดปุ่มด้านล่างเพื่อเปิดร้านของฉันในแอป Lazada  
+       ถ้าไม่มีแอป ระบบจะพาไปยังหน้าร้านในเว็บโดยอัตโนมัติ</p>
+
+    <!-- 🔗 เปิด redirect.html ในแท็บใหม่ -->
+    <a href="redirect2.html" target="_blank">
+      <button>เปิดร้านใน Lazada</button>
+    </a>
+
+    <small>รองรับทั้ง iOS และ Android</small>
+  </div>
 </body>
 </html>
