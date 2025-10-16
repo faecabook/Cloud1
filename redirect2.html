@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>กำลังเปิดร้าน Lazada...</title>
+
+  <!-- ⏳ ถ้าเปิดแอปไม่สำเร็จใน 1.5 วิ ให้เด้งไปหน้าร้าน -->
+  <meta http-equiv="refresh" content="1.5;url=https://s.lazada.co.th/s.ZaRsJP?cc">
+
+  <script>
+    // เมื่อหน้าโหลด → พยายามเปิดแอป Lazada
+    window.onload = function() {
+      // ลองเปิดแอป Lazada (deep link)
+      window.location = 'lazada://';
+      // ถ้าไม่มีแอป ระบบจะ fallback ตาม meta refresh ด้านบน
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: "Noto Sans Thai", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #f5f9ff, #fff);
+      text-align: center;
+    }
+    img {
+      width: 90px; margin-bottom: 16px;
+    }
+    h2 {
+      color: #0b74da; font-size: 1.3rem; margin: 0 0 10px;
+    }
+    p {
+      color: #555; font-size: 0.95rem; margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <!-- 🛍 โลโก้ Lazada (หรือจะเปลี่ยนเป็นโลโก้ร้านคุณก็ได้) -->
+  <img src="https://img.alicdn.com/imgextra/i1/O1CN01YMCe2E1V1UmZfuhE8_!!6000000002567-2-tps-800-800.png" alt="Lazada Logo">
+
+  <h2>กำลังเปิดร้านของคุณในแอป Lazada...</h2>
+  <p>หากไม่มีแอป ระบบจะพาคุณไปยังหน้าร้านในเว็บภายในไม่กี่วินาที</p>
+</body>
+</html>
