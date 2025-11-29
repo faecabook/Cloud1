@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Redirect Example</title>
+<script>
+const redirectCooldown = 5 * 60 * 1000; // 5 นาที
+const lastVisit = localStorage.getItem('lastVisit');
+const now = Date.now();
+
+if (!lastVisit || (now - lastVisit > redirectCooldown)) {
+    // ครั้งแรก → Lazada web
+    localStorage.setItem('lastVisit', now);
+    window.location.href = "https://s.lazada.co.th/s.Z05x5w?cc";
+} else {
+    // ครั้งที่ 2 ภายใน 5 นาที → Shopee app หลัง 3 วิ
+    setTimeout(() => {
+        // URL scheme ของ Shopee
+        const shopeeAppURL = "shopee://product/7KoJhT5zjg";
+        const fallbackWebURL = "https://s.shopee.co.th/7KoJhT5zjg";
+
+        // ลองเปิดแอป ถ้าเปิดไม่ได้ → redirect เว็บ
+        window.location.href = shopeeAppURL;
+
+        // fallback ใน 2 วิ ถ้าแอปไม่เปิด
+        setTimeout(() => {
+            window.location.href = fallbackWebURL;
+        }, 2000);
+
+    }, 3000); // หน่วง 3 วินาที
+}
+</script>
+</head>
+<body>
+<p>กำลังตรวจสอบและเปลี่ยนเส้นทาง...</p>
+</body>
+</html>
