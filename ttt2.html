@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Redirect Example</title>
+<script>
+const redirectCooldown = 5 * 60 * 1000;
+const lastVisit = localStorage.getItem('lastVisit');
+const now = Date.now();
+
+if (!lastVisit || (now - lastVisit > redirectCooldown)) {
+    // ครั้งแรก → Lazada
+    localStorage.setItem('lastVisit', now);
+    window.location.href = "https://s.lazada.co.th/s.Z05x5w?cc";
+} else {
+    // ครั้งที่ 2 ภายใน 5 นาที → Shopee หลัง 3 วิ
+    setTimeout(() => {
+        // ใช้ window.location.href แทน <a>.click()
+        window.location.href = "https://s.shopee.co.th/7KoJhT5zjg";
+    }, 3000);
+}
+</script>
+</head>
+<body>
+<p>กำลังตรวจสอบและเปลี่ยนเส้นทาง...</p>
+</body>
+</html>
