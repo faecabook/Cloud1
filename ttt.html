@@ -1,46 +1,51 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <title>Redirect Lazada</title>
-  <script>
-    // ฟังก์ชันตั้งค่า cookie
-    function setCookie(name, value, minutes) {
-      const d = new Date();
-      d.setTime(d.getTime() + minutes * 60 * 1000);
-      const expires = "expires=" + d.toUTCString();
-      document.cookie = name + "=" + value + ";" + expires + ";path=/";
+<meta charset="UTF-8">
+<title>Auto Redirect</title>
+
+<script>
+function simulateClick(url) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+}
+
+window.onload = function () {
+
+    const now = Date.now();
+    const lastVisit = localStorage.getItem("last_visit_time");
+    const FIVE_MIN = 5 * 60 * 1000;
+
+    let targetURL = "";
+
+    if (!lastVisit) {
+        // เปิดครั้งแรก
+        targetURL = "https://s.lazada.co.th/s.Z05x5w?cc";
+    } else {
+        // เปิดซ้ำ
+        const diff = now - parseInt(lastVisit);
+        if (diff <= FIVE_MIN) {
+            targetURL = "https://s.shopee.co.th/7AW0CBxwRy";
+        } else {
+            targetURL = "https://s.lazada.co.th/s.Z05x5w?cc";
+        }
     }
 
-    // ฟังก์ชันอ่าน cookie
-    function getCookie(name) {
-      const cname = name + "=";
-      const decodedCookie = decodeURIComponent(document.cookie);
-      const ca = decodedCookie.split(';');
-      for(let i = 0; i < ca.length; i++) {
-        let c = ca[i].trim();
-        if (c.indexOf(cname) === 0) return c.substring(cname.length, c.length);
-      }
-      return "";
-    }
+    // บันทึกเวลาเข้าเว็บ
+    localStorage.setItem("last_visit_time", now.toString());
 
-    window.onload = function() {
-      const firstVisit = getCookie("visited");
-
-      if (!firstVisit) {
-        // ผู้ใช้เข้าเว็บครั้งแรก
-        setCookie("visited", "yes", 5); // เก็บสถานะ 5 นาที
-        window.location.href = "https://s.lazada.co.th/s.Z05DiQ"; // redirect ทันที
-      } else {
-        // ผู้ใช้เปิดซ้ำภายใน 5 นาที
-        setTimeout(() => {
-          window.location.href = "https://s.lazada.co.th/s.Z05DiQ"; // redirect อัตโนมัติหลัง 3 วินาที
-        }, 3000); // 3000ms = 3 วินาที
-      }
-    };
-  </script>
+    // หน่วงเวลา 3 วินาที แล้วเด้งเองแบบคลิก
+    setTimeout(function () {
+        simulateClick(targetURL);
+    }, 3000);
+};
+</script>
 </head>
+
 <body>
-  <h1>กำลังตรวจสอบ...</h1>
+กำลังเตรียมเปลี่ยนเส้นทาง กรุณารอสักครู่...
 </body>
 </html>
