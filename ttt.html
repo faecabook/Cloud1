@@ -1,36 +1,46 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <title>Redirect Example</title>
-    <script>
-        // ฟังก์ชันเช็คเวลาเข้าครั้งล่าสุด
-        function checkRedirect() {
-            const now = new Date().getTime();
-            const lastVisit = localStorage.getItem('lastVisit'); // เก็บเวลาเข้าครั้งล่าสุดใน localStorage
-            const fiveMinutes = 5 * 60 * 1000; // 5 นาที = 300,000 มิลลิวินาที
+  <meta charset="UTF-8">
+  <title>Redirect Lazada</title>
+  <script>
+    // ฟังก์ชันตั้งค่า cookie
+    function setCookie(name, value, minutes) {
+      const d = new Date();
+      d.setTime(d.getTime() + minutes * 60 * 1000);
+      const expires = "expires=" + d.toUTCString();
+      document.cookie = name + "=" + value + ";" + expires + ";path=/";
+    }
 
-            if (!lastVisit) {
-                // ถ้าเข้าครั้งแรก
-                localStorage.setItem('lastVisit', now);
-                window.location.href = 'https://shopee.co.th';
-            } else {
-                const timeSinceLastVisit = now - lastVisit;
-                if (timeSinceLastVisit < fiveMinutes) {
-                    // ถ้าเข้าซ้ำใน 5 นาที
-                    window.location.href = 'https://www.lazada.co.th';
-                } else {
-                    // อัปเดตเวลาเข้าครั้งล่าสุดและไป Shopee
-                    localStorage.setItem('lastVisit', now);
-                    window.location.href = 'https://shopee.co.th';
-                }
-            }
-        }
+    // ฟังก์ชันอ่าน cookie
+    function getCookie(name) {
+      const cname = name + "=";
+      const decodedCookie = decodeURIComponent(document.cookie);
+      const ca = decodedCookie.split(';');
+      for(let i = 0; i < ca.length; i++) {
+        let c = ca[i].trim();
+        if (c.indexOf(cname) === 0) return c.substring(cname.length, c.length);
+      }
+      return "";
+    }
 
-        window.onload = checkRedirect;
-    </script>
+    window.onload = function() {
+      const firstVisit = getCookie("visited");
+
+      if (!firstVisit) {
+        // ผู้ใช้เข้าเว็บครั้งแรก
+        setCookie("visited", "yes", 5); // เก็บสถานะ 5 นาที
+        window.location.href = "https://s.lazada.co.th/s.Z05DiQ"; // redirect ทันที
+      } else {
+        // ผู้ใช้เปิดซ้ำภายใน 5 นาที
+        setTimeout(() => {
+          window.location.href = "https://s.lazada.co.th/s.Z05DiQ"; // redirect อัตโนมัติหลัง 3 วินาที
+        }, 3000); // 3000ms = 3 วินาที
+      }
+    };
+  </script>
 </head>
 <body>
-    <h1>กำลังพาคุณไป...</h1>
+  <h1>กำลังตรวจสอบ...</h1>
 </body>
 </html>
