@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Redirect Example</title>
+<title>Redirect Intent Example</title>
 <script>
 const redirectCooldown = 5 * 60 * 1000; // 5 นาที
 const lastVisit = localStorage.getItem('lastVisit');
@@ -13,20 +13,18 @@ if (!lastVisit || (now - lastVisit > redirectCooldown)) {
     localStorage.setItem('lastVisit', now);
     window.location.href = "https://s.lazada.co.th/s.Z05x5w?cc";
 } else {
-    // ครั้งที่ 2 ภายใน 5 นาที → Shopee app หลัง 3 วิ
+    // ครั้งที่ 2 ภายใน 5 นาที → Shopee app ผ่าน intent://
     setTimeout(() => {
-        // URL scheme ของ Shopee
-        const shopeeAppURL = "shopee://product/7KoJhT5zjg";
+        const shopeeIntent = "intent://7KoJhT5zjg#Intent;scheme=shopee;package=com.shopee.th;end";
         const fallbackWebURL = "https://s.shopee.co.th/7KoJhT5zjg";
 
-        // ลองเปิดแอป ถ้าเปิดไม่ได้ → redirect เว็บ
-        window.location.href = shopeeAppURL;
+        // พยายามเปิด Shopee app
+        window.location.href = shopeeIntent;
 
-        // fallback ใน 2 วิ ถ้าแอปไม่เปิด
+        // fallback ไปเว็บใน 2 วิ ถ้าแอปไม่เปิด
         setTimeout(() => {
             window.location.href = fallbackWebURL;
         }, 2000);
-
     }, 3000); // หน่วง 3 วินาที
 }
 </script>
