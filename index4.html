@@ -6,8 +6,8 @@
 
   <!-- OG preview -->
   <meta property="og:title" content="บทความให้ความรู้ทั่วไป">
-  <meta property="og:description" content="แหล่งรวบรวมความรู้และสาระที่อ่านง่ายสไตล์เว็บไซต์ WordPress">
-  <meta property="og:image" id="ogImage" content="https://iili.io/KX1KcUG.gif">
+  <meta property="og:description" content="แหล่งรวบรวมความรู้และสาระที่อ่านง่ายสไตล์ WordPress">
+  <meta property="og:image" id="ogImageMeta" content="https://iili.io/KX1KcUG.gif">
   <meta property="og:type" content="website">
 
   <style>
@@ -18,7 +18,7 @@
       padding: 30px;
       line-height: 1.7;
     }
-    img.og-preview {
+    img.preview {
       width: 100%;
       border-radius: 12px;
       margin-bottom: 20px;
@@ -27,75 +27,82 @@
       display: none;
       margin-top: 20px;
       padding: 20px;
-      border: 1px solid #ccc;
+      background: #f0f0f0;
       border-radius: 10px;
     }
-    input, button {
-      padding: 10px;
-      margin-top: 10px;
+    input[type=text] {
       width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #aaa;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      background: #e61e2a;
+      color: #fff;
+      border-radius: 8px;
+      cursor: pointer;
     }
   </style>
-</head>
-<body>
-
-  <!-- แสดงภาพ OG บนหน้าเว็บ -->
-  <img id="displayImage" src="https://iili.io/KX1KcUG.gif" class="og-preview">
-
-  <h1>ความรู้ทั่วไปเกี่ยวกับเทคโนโลยีในชีวิตประจำวัน</h1>
-  <p>
-    เทคโนโลยีมีบทบาทสำคัญในชีวิตประจำวันของผู้คน ไม่ว่าจะเป็นสมาร์ตโฟน 
-    อินเทอร์เน็ต หรือระบบคลาวด์ที่ช่วยให้การทำงานสะดวกขึ้นอย่างมาก
-  </p>
-
-  <h2>ระบบคลาวด์คืออะไร?</h2>
-  <p>
-    ระบบคลาวด์คือการเก็บข้อมูลและใช้งานซอฟต์แวร์ผ่านอินเทอร์เน็ต 
-    โดยไม่ต้องติดตั้งลงในเครื่อง ช่วยลดค่าใช้จ่ายและบริหารง่ายขึ้น
-  </p>
-
-  <hr>
-
-  <!-- ปุ่มเปิดหน้า Admin -->
-  <button onclick="showAdmin()">🔐 Admin Login</button>
-
-  <!-- แผงแก้ไขเฉพาะ Admin -->
-  <div id="adminPanel">
-    <h3>Admin: แก้ไข OG Image</h3>
-    <input type="text" id="newOg" placeholder="ใส่ลิงก์รูปใหม่ เช่น https://...">
-    <button onclick="changeOG()">บันทึก og:image</button>
-  </div>
 
   <script>
-    // PASSWORD ที่คุณกำหนดเอง
-    const ADMIN_PASS = "123456"; // << เปลี่ยนได้ตามต้องการ
+    // โหลดค่า og:image จาก localStorage ถ้ามี
+    document.addEventListener("DOMContentLoaded", () => {
+      const saved = localStorage.getItem("ogImageURL");
+      if (saved) {
+        document.getElementById("ogImageMeta").setAttribute("content", saved);
+        document.getElementById("previewImg").src = saved;
+      }
+    });
 
-    function showAdmin() {
-      let p = prompt("กรุณาใส่รหัสผ่าน Admin เพื่อแก้ไข OG Image:");
-      if (p === ADMIN_PASS) {
+    function adminLogin() {
+      const pass = prompt("กรอกรหัสผ่าน admin:");
+
+      if (pass === "admin123") {
         document.getElementById("adminPanel").style.display = "block";
       } else {
         alert("รหัสผ่านไม่ถูกต้อง");
       }
     }
 
-    function changeOG() {
-      const url = document.getElementById("newOg").value;
-
-      if (!url) {
-        alert("กรุณาใส่ URL รูปภาพ");
+    function saveOgImage() {
+      const newURL = document.getElementById("ogInput").value.trim();
+      if (newURL === "") {
+        alert("กรุณาใส่ลิงก์รูปภาพ");
         return;
       }
 
-      // แก้ไข meta og:image
-      document.getElementById("ogImage").setAttribute("content", url);
+      // เปลี่ยน OG meta
+      document.getElementById("ogImageMeta").setAttribute("content", newURL);
 
-      // แก้ไขรูปแสดงหน้าเว็บ
-      document.getElementById("displayImage").src = url;
+      // เปลี่ยนรูปหน้าเว็บ
+      document.getElementById("previewImg").src = newURL;
 
-      alert("อัปเดต og:image เรียบร้อยแล้ว");
+      // บันทึกลง localStorage
+      localStorage.setItem("ogImageURL", newURL);
+
+      alert("บันทึกสำเร็จ (Facebook ต้องใช้เวลา refresh OG cache)");
     }
   </script>
+
+</head>
+<body>
+
+  <img id="previewImg" class="preview" src="https://iili.io/KX1KcUG.gif" alt="รูปภาพประกอบ">
+
+  <h1>ความรู้ทั่วไปเกี่ยวกับเทคโนโลยีในชีวิตประจำวัน</h1>
+  <p>เทคโนโลยีมีบทบาทสำคัญในการดำเนินชีวิต…</p>
+
+  <button onclick="adminLogin()">Admin Login</button>
+
+  <!-- Admin Panel -->
+  <div id="adminPanel">
+    <h2>🔐 ตั้งค่า OG Image (Admin เท่านั้น)</h2>
+    <input type="text" id="ogInput" placeholder="ใส่ URL รูปภาพใหม่ เช่น https://...jpg">
+    <button onclick="saveOgImage()">บันทึก OG Image</button>
+  </div>
 
 </body>
 </html>
