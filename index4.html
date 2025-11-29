@@ -1,13 +1,14 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>เว็บอัปโหลด OG Image</title>
+  <title>บทความให้ความรู้ทั่วไป</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- OG -->
-  <meta property="og:title" content="ตัวอย่างเว็บแสดงรูป OG อัตโนมัติ">
-  <meta property="og:description" content="อัปโหลดรูป og:image ได้ด้วยตัวเอง">
-  <meta property="og:image" id="ogImageMeta" content="">
+  <!-- OG preview -->
+  <meta property="og:title" content="บทความให้ความรู้ทั่วไป">
+  <meta property="og:description" content="แหล่งรวบรวมความรู้และสาระที่อ่านง่ายสไตล์เว็บไซต์ WordPress">
+  <meta property="og:image" id="ogImage" content="https://iili.io/KX1KcUG.gif">
+  <meta property="og:type" content="website">
 
   <style>
     body {
@@ -15,49 +16,85 @@
       max-width: 850px;
       margin: auto;
       padding: 30px;
+      line-height: 1.7;
     }
-    .preview {
+    img.og-preview {
       width: 100%;
-      margin-top: 20px;
       border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    #adminPanel {
       display: none;
+      margin-top: 20px;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+    }
+    input, button {
+      padding: 10px;
+      margin-top: 10px;
+      width: 100%;
     }
   </style>
 </head>
 <body>
 
-  <h1>อัปโหลดรูปเพื่อใช้เป็น OG Image</h1>
+  <!-- แสดงภาพ OG บนหน้าเว็บ -->
+  <img id="displayImage" src="https://iili.io/KX1KcUG.gif" class="og-preview">
 
-  <input type="file" id="upload" accept="image/*"><br><br>
+  <h1>ความรู้ทั่วไปเกี่ยวกับเทคโนโลยีในชีวิตประจำวัน</h1>
+  <p>
+    เทคโนโลยีมีบทบาทสำคัญในชีวิตประจำวันของผู้คน ไม่ว่าจะเป็นสมาร์ตโฟน 
+    อินเทอร์เน็ต หรือระบบคลาวด์ที่ช่วยให้การทำงานสะดวกขึ้นอย่างมาก
+  </p>
 
-  <!-- แสดงรูป -->
-  <img id="previewImg" class="preview">
+  <h2>ระบบคลาวด์คืออะไร?</h2>
+  <p>
+    ระบบคลาวด์คือการเก็บข้อมูลและใช้งานซอฟต์แวร์ผ่านอินเทอร์เน็ต 
+    โดยไม่ต้องติดตั้งลงในเครื่อง ช่วยลดค่าใช้จ่ายและบริหารง่ายขึ้น
+  </p>
+
+  <hr>
+
+  <!-- ปุ่มเปิดหน้า Admin -->
+  <button onclick="showAdmin()">🔐 Admin Login</button>
+
+  <!-- แผงแก้ไขเฉพาะ Admin -->
+  <div id="adminPanel">
+    <h3>Admin: แก้ไข OG Image</h3>
+    <input type="text" id="newOg" placeholder="ใส่ลิงก์รูปใหม่ เช่น https://...">
+    <button onclick="changeOG()">บันทึก og:image</button>
+  </div>
 
   <script>
-    const uploadInput = document.getElementById("upload");
-    const previewImg = document.getElementById("previewImg");
-    const ogMeta = document.getElementById("ogImageMeta");
+    // PASSWORD ที่คุณกำหนดเอง
+    const ADMIN_PASS = "123456"; // << เปลี่ยนได้ตามต้องการ
 
-    uploadInput.addEventListener("change", function () {
-      const file = this.files[0];
-      if (!file) return;
+    function showAdmin() {
+      let p = prompt("กรุณาใส่รหัสผ่าน Admin เพื่อแก้ไข OG Image:");
+      if (p === ADMIN_PASS) {
+        document.getElementById("adminPanel").style.display = "block";
+      } else {
+        alert("รหัสผ่านไม่ถูกต้อง");
+      }
+    }
 
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const imageURL = e.target.result;
+    function changeOG() {
+      const url = document.getElementById("newOg").value;
 
-        // แสดงรูปหน้าเว็บ
-        previewImg.src = imageURL;
-        previewImg.style.display = "block";
+      if (!url) {
+        alert("กรุณาใส่ URL รูปภาพ");
+        return;
+      }
 
-        // อัปเดต OG Image meta tag
-        ogMeta.setAttribute("content", imageURL);
+      // แก้ไข meta og:image
+      document.getElementById("ogImage").setAttribute("content", url);
 
-        // แจ้งเตือน
-        alert("อัปโหลดสำเร็จ! ระบบได้อัปเดต og:image ให้แล้ว");
-      };
-      reader.readAsDataURL(file);
-    });
+      // แก้ไขรูปแสดงหน้าเว็บ
+      document.getElementById("displayImage").src = url;
+
+      alert("อัปเดต og:image เรียบร้อยแล้ว");
+    }
   </script>
 
 </body>
