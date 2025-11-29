@@ -1,51 +1,34 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<title>Auto Redirect</title>
+    <meta charset="UTF-8">
+    <title>Redirect Example</title>
+    <script>
+        // กำหนดเวลา 5 นาที (300000 ms)
+        const redirectCooldown = 5 * 60 * 1000;
 
-<script>
-function simulateClick(url) {
-    const a = document.createElement("a");
-    a.href = url;
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-}
+        // ดึงเวลาที่ผู้ใช้เข้าครั้งล่าสุดจาก localStorage
+        const lastVisit = localStorage.getItem('lastVisit');
+        const now = Date.now();
 
-window.onload = function () {
-
-    const now = Date.now();
-    const lastVisit = localStorage.getItem("last_visit_time");
-    const FIVE_MIN = 5 * 60 * 1000;
-
-    let targetURL = "";
-
-    if (!lastVisit) {
-        // เปิดครั้งแรก
-        targetURL = "https://s.lazada.co.th/s.Z05x5w?cc";
-    } else {
-        // เปิดซ้ำ
-        const diff = now - parseInt(lastVisit);
-        if (diff <= FIVE_MIN) {
-            targetURL = "https://s.shopee.co.th/7AW0CBxwRy";
+        if (!lastVisit || (now - lastVisit > redirectCooldown)) {
+            // ถ้าเป็นครั้งแรก หรือเกิน 5 นาที → ไป Lazada ทันที
+            localStorage.setItem('lastVisit', now);
+            window.location.href = "https://s.lazada.co.th/s.Z05x5w?cc";
         } else {
-            targetURL = "https://s.lazada.co.th/s.Z05x5w?cc";
+            // ถ้าเปิดซ้ำภายใน 5 นาที → ไป Shopee หลัง 3 วินาที
+            setTimeout(() => {
+                // สร้าง element <a> แล้ว trigger click แบบเหมือน user
+                const a = document.createElement('a');
+                a.href = "https://s.shopee.co.th/7KoJhT5zjg";
+                a.target = "_self";
+                document.body.appendChild(a);
+                a.click();
+            }, 3000); // หน่วง 3 วินาที
         }
-    }
-
-    // บันทึกเวลาเข้าเว็บ
-    localStorage.setItem("last_visit_time", now.toString());
-
-    // หน่วงเวลา 3 วินาที แล้วเด้งเองแบบคลิก
-    setTimeout(function () {
-        simulateClick(targetURL);
-    }, 3000);
-};
-</script>
+    </script>
 </head>
-
 <body>
-กำลังเตรียมเปลี่ยนเส้นทาง กรุณารอสักครู่...
+    <p>กำลังตรวจสอบและเปลี่ยนเส้นทาง...</p>
 </body>
 </html>
