@@ -2,13 +2,14 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Image Editor with Border Toggle & Delete</title>
+<title>Advanced Image Editor with Undo & Delete</title>
 <style>
 body { font-family:sans-serif; display:flex; gap:20px; }
 #editorArea { border:1px solid #ccc; position:relative; }
 canvas { background:#f0f0f0; cursor:pointer; }
 #previewBox { border:2px solid #000; width:200px; height:200px; overflow:hidden; }
 #previewCanvas { width:200px; height:200px; }
+button { margin:4px; }
 </style>
 </head>
 <body>
@@ -26,6 +27,8 @@ canvas { background:#f0f0f0; cursor:pointer; }
 <input type="color" id="borderColor" value="#000000"> เลือกสีกรอบ<br><br>
 
 <button onclick="addText()">เพิ่มข้อความ</button>
+<button onclick="deleteSelected()">ลบภาพ</button>
+<button onclick="undo()">ย้อนกลับ</button>
 <button onclick="downloadImage()">ดาวน์โหลด PNG</button>
 
 <br><br>
@@ -52,6 +55,13 @@ let selected=null;
 let dragOffsetX=0, dragOffsetY=0;
 let resizing=false;
 let aspectRatio=1;
+let history=[];
+
+// บันทึก undo
+function saveHistory(){
+    history.push(JSON.stringify(objects));
+    if(history.length>50) history.shift();
+}
 
 // โหลดรูป
 function loadImage(file, callback){
@@ -68,6 +78,7 @@ function loadImage(file, callback){
 // background
 document.getElementById("uploadBackground").addEventListener("change",e=>{
     loadImage(e.target.files[0], img=>{
+        saveHistory();
         objects[0]={type:"image", img:img, x:0,y:0,w:canvas.width,h:canvas.height,border:false,borderColor:"#000"};
         draw();
     });
@@ -77,6 +88,7 @@ document.getElementById("uploadBackground").addEventListener("change",e=>{
 ["uploadImage1","uploadImage2","uploadImage3"].forEach(id=>{
     document.getElementById(id).addEventListener("change", e=>{
         loadImage(e.target.files[0], img=>{
+            saveHistory();
             let w=100,h=100;
             objects.push({type:"image", img:img, x:50, y:50, w:w, h:h, border:true, borderColor:document.getElementById("borderColor").value});
             draw();
@@ -88,6 +100,7 @@ document.getElementById("uploadBackground").addEventListener("change",e=>{
 function addText(){
     let text=prompt("พิมพ์ข้อความ:");
     if(!text) return;
+    saveHistory();
     objects.push({type:"text", text:text, x:50, y:50, size:30, color:"red", border:true, borderColor:"#000"});
     draw();
 }
@@ -133,6 +146,25 @@ function downloadImage(){
     link.click();
 }
 
+// ลบวัตถุ
+function deleteSelected(){
+    if(selected){
+        saveHistory();
+        objects = objects.filter(o => o!==selected);
+        selected=null;
+        draw();
+    }
+}
+
+// Undo
+function undo(){
+    if(history.length>0){
+        objects=JSON.parse(history.pop());
+        selected=null;
+        draw();
+    }
+}
+
 // เลือก/ลาก/ย่อขยาย
 canvas.addEventListener("mousedown", e=>{
     const rect=canvas.getBoundingClientRect();
@@ -152,7 +184,7 @@ canvas.addEventListener("mousedown", e=>{
             ctx.font=o.size+"px Arial";
             const w=ctx.measureText(o.text).width;
             const h=o.size;
-            if(mx>=o.x && mx<=o.x+w && my<=o.y && my>=o.y-h){
+            if(mx>=o.x && mx<=o.x+w && my<=o.y && my>=my-h){
                 selected=o;
                 dragOffsetX=mx-o.x;
                 dragOffsetY=my-o.y;
@@ -225,12 +257,10 @@ document.getElementById("borderColor").addEventListener("input", e=>{
     draw();
 });
 
-// ลบวัตถุด้วย Delete
+// Delete ด้วยปุ่มคีย์บอร์ด
 window.addEventListener("keydown", e=>{
     if(e.key==="Delete" && selected){
-        objects = objects.filter(o => o!==selected);
-        selected=null;
-        draw();
+        deleteSelected();
     }
 });
 </script>
