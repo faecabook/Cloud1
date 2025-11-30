@@ -2,214 +2,153 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Pro Image Editor 2025</title>
+<title>Advanced Image Editor 2025</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-body {font-family:'Segoe UI', sans-serif; background:#f2f4f7; margin:0; padding:20px; display:flex; flex-direction:column; align-items:center;}
-h2 {text-align:center; color:#333;}
-.container {display:flex; flex-wrap:wrap; gap:20px; max-width:1200px;}
-.card {background:#fff; padding:15px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.1);}
-canvas {border:1px solid #ccc; cursor:pointer; background:#fafafa;}
-button {background:#2563eb; color:white; border:none; padding:8px 14px; border-radius:8px; margin:2px; cursor:pointer;}
-button:hover {background:#1e40af;}
-#previewBox {width:200px; height:200px; border:2px solid #000; overflow:hidden;}
-.input-group {margin:5px 0;}
-.handle {width:10px;height:10px;background:blue;position:absolute;cursor:pointer;}
-.rotate-handle {width:12px;height:12px;background:red;border-radius:50%;position:absolute;cursor:pointer;}
+body {font-family:'Segoe UI', sans-serif; background:#f0f2f5; margin:0; padding:20px;}
+h2{text-align:center;color:#333;}
+.container{display:flex;flex-wrap:wrap;gap:20px;max-width:1300px;margin:auto;}
+.card{background:#fff;padding:15px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+canvas{border:1px solid #ccc;background:#fafafa; cursor:pointer;}
+button{background:#2563eb;color:white;border:none;padding:6px 12px;border-radius:6px;margin:2px;cursor:pointer;}
+button:hover{background:#1e40af;}
+.input-group{margin:5px 0;}
 </style>
 </head>
 <body>
 
-<h2>Pro Image Editor 2025</h2>
+<h2>Advanced Image Editor 2025</h2>
 <div class="container">
 
 <div class="card" style="position:relative;">
 <h3>Editor</h3>
 <div class="input-group">
-<input type="file" id="uploadBackground" accept="image/*">
-</div>
-<div class="input-group">
-<input type="file" id="uploadDecoration" accept="image/*">
-</div>
-<div class="input-group">
+<input type="file" id="uploadImage" accept="image/*">
+<input type="file" id="uploadSticker" accept="image/*">
 <input type="text" id="imageURL" placeholder="วาง URL ภาพแล้ว Enter">
-</div>
-<div class="input-group">
-<input type="color" id="borderColor" value="#ff0000"> เลือกสีกรอบสำหรับภาพใหม่
-</div>
 <button onclick="addText()">เพิ่มข้อความ</button>
+<button onclick="deleteObject()">ลบวัตถุ</button>
+<button onclick="undo()">Undo</button>
+<button onclick="redo()">Redo</button>
 <button onclick="downloadPNG()">ดาวน์โหลด PNG</button>
 <button onclick="downloadGIF()">ดาวน์โหลด GIF</button>
+</div>
 
-<canvas id="mainCanvas" width="700" height="500"></canvas>
+<div class="input-group">
+<label>ข้อความ/Font:</label>
+<input type="text" id="textInput" placeholder="แก้ข้อความ">
+<select id="fontSelect">
+<option value="Arial">Arial</option>
+<option value="Verdana">Verdana</option>
+<option value="Tahoma">Tahoma</option>
+<option value="Georgia">Georgia</option>
+<option value="Courier New">Courier New</option>
+</select>
+<input type="number" id="fontSize" value="30">
+<input type="color" id="fontColor" value="#ff0000">
+<input type="checkbox" id="boldCheck">Bold
+<input type="checkbox" id="italicCheck">Italic
+</div>
+
+<canvas id="mainCanvas" width="800" height="600"></canvas>
 </div>
 
 <div class="card">
 <h3>Preview 200x200</h3>
-<div id="previewBox">
 <canvas id="previewCanvas" width="200" height="200"></canvas>
 </div>
-</div>
-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
 <script>
 const canvas=document.getElementById("mainCanvas"), ctx=canvas.getContext("2d");
 const previewCanvas=document.getElementById("previewCanvas"), pctx=previewCanvas.getContext("2d");
-let objects=[], selected=null, dragOffsetX=0, dragOffsetY=0;
-let resizing=false, resizeCorner=null, rotating=false;
-const borderColorInput=document.getElementById("borderColor");
+let objects=[], selected=null;
+let dragOffsetX=0, dragOffsetY=0, resizing=false, resizeCorner=null, rotating=false;
+
+// Undo/Redo
+let history=[], redoStack=[];
+function saveHistory(){ history.push(JSON.stringify(objects)); if(history.length>50) history.shift(); redoStack=[]; }
+function undo(){ if(history.length>0){ redoStack.push(JSON.stringify(objects)); objects=JSON.parse(history.pop()); draw(); }}
+function redo(){ if(redoStack.length>0){ history.push(JSON.stringify(objects)); objects=JSON.parse(redoStack.pop()); draw(); }}
 
 function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    for(let obj of objects){
+    for(let o of objects){
         ctx.save();
-        let cx=obj.x+obj.w/2, cy=obj.y+obj.h/2;
-        ctx.translate(cx,cy);
-        ctx.rotate((obj.angle||0)*Math.PI/180);
-        ctx.translate(-cx,-cy);
-        if(obj.type==="image") ctx.drawImage(obj.img,obj.x,obj.y,obj.w,obj.h);
-        else if(obj.type==="text"){ ctx.font=obj.size+"px Arial"; ctx.fillStyle=obj.color; ctx.fillText(obj.text,obj.x,obj.y);}
-        if(obj.border){
-            ctx.strokeStyle=obj.border; ctx.lineWidth=3;
-            ctx.strokeRect(obj.x,obj.y,obj.w,obj.h);
+        let cx=o.x+o.w/2, cy=o.y+o.h/2;
+        ctx.translate(cx,cy); ctx.rotate((o.angle||0)*Math.PI/180); ctx.translate(-cx,-cy);
+        if(o.type==="image") ctx.drawImage(o.img,o.x,o.y,o.w,o.h);
+        else if(o.type==="text"){
+            ctx.font=(o.bold?"bold ":"")+(o.italic?"italic ":"")+o.size+"px "+(o.font||"Arial");
+            ctx.fillStyle=o.color; ctx.fillText(o.text,o.x,o.y);
         }
+        if(o.border){ ctx.strokeStyle=o.border; ctx.lineWidth=3; ctx.strokeRect(o.x,o.y,o.w,o.h);}
         ctx.restore();
     }
-    drawHandles();
-    updatePreview();
+    drawHandles(); updatePreview();
 }
 
-function updatePreview(){
-    pctx.clearRect(0,0,200,200);
-    pctx.drawImage(canvas,0,0,200,200);
-}
+function updatePreview(){ pctx.clearRect(0,0,200,200); pctx.drawImage(canvas,0,0,200,200);}
+function downloadPNG(){ let link=document.createElement("a"); link.href=canvas.toDataURL(); link.download="edited.png"; link.click();}
+function downloadGIF(){ let gif=new GIF({workers:2,quality:10}); gif.addFrame(canvas,{copy:true,delay:200}); gif.on('finished',b=>{let link=document.createElement("a"); link.href=URL.createObjectURL(b); link.download="edited.gif"; link.click();}); gif.render();}
 
-function downloadPNG(){
-    let link=document.createElement("a");
-    link.download="edited.png";
-    link.href=canvas.toDataURL();
-    link.click();
-}
+// Load image/sticker
+document.getElementById("uploadImage").addEventListener("change", e=>{let f=e.target.files[0]; if(!f)return; let r=new FileReader(); r.onload=function(ev){let img=new Image(); img.onload=function(){objects.push({type:"image",img:img,x:50,y:50,w:200,h:200,angle:0}); saveHistory(); draw();}; img.src=ev.target.result;}; r.readAsDataURL(f);});
+document.getElementById("uploadSticker").addEventListener("change", e=>{let f=e.target.files[0]; if(!f)return; let r=new FileReader(); r.onload=function(ev){let img=new Image(); img.onload=function(){objects.push({type:"image",img:img,x:100,y:100,w:100,h:100,angle:0,border:"#00f"}); saveHistory(); draw();}; img.src=ev.target.result;}; r.readAsDataURL(f);});
 
-function downloadGIF(){
-    let gif=new GIF({workers:2, quality:10});
-    gif.addFrame(canvas,{copy:true, delay:200});
-    gif.on('finished', blob=>{
-        let link=document.createElement("a");
-        link.href=URL.createObjectURL(blob);
-        link.download="edited.gif";
-        link.click();
-    });
-    gif.render();
-}
+// URL image
+document.getElementById("imageURL").addEventListener("keydown", e=>{if(e.key==="Enter"){let url=e.target.value.trim(); if(!url)return; let img=new Image(); img.crossOrigin="anonymous"; img.onload=function(){objects.push({type:"image",img:img,x:50,y:50,w:150,h:150,border:"#00f"}); saveHistory(); draw();}; img.onerror=()=>alert("โหลดภาพไม่สำเร็จ"); img.src=url; e.target.value="";}});
 
-// โหลด Background
-document.getElementById("uploadBackground").addEventListener("change", e=>{
-    let file=e.target.files[0]; if(!file) return;
-    let reader=new FileReader();
-    reader.onload=function(evt){
-        let img=new Image(); img.onload=function(){
-            objects[0]={type:"image", img:img, x:0,y:0,w:canvas.width,h:canvas.height, angle:0};
-            draw();
-        }; img.src=evt.target.result;
-    }; reader.readAsDataURL(file);
-});
+// Add Text
+function addText(){ let t=prompt("ข้อความ:"); if(!t)return; objects.push({type:"text",text:t,x:50,y:50,size:30,color:"#f00",bold:false,italic:false,font:"Arial",angle:0}); saveHistory(); draw();}
 
-// โหลด Decoration
-document.getElementById("uploadDecoration").addEventListener("change", e=>{
-    let file=e.target.files[0]; if(!file) return;
-    let reader=new FileReader();
-    reader.onload=function(evt){
-        let img=new Image(); img.onload=function(){
-            objects.push({type:"image", img:img, x:50,y:50,w:100,h:100, angle:0, border:borderColorInput.value});
-            draw();
-        }; img.src=evt.target.result;
-    }; reader.readAsDataURL(file);
-});
+// Delete
+function deleteObject(){ if(selected){ objects=objects.filter(o=>o!==selected); selected=null; saveHistory(); draw(); }}
 
-// URL
-document.getElementById("imageURL").addEventListener("keydown", e=>{
-    if(e.key==="Enter"){
-        let url=e.target.value.trim(); if(!url) return;
-        let img=new Image(); img.crossOrigin="anonymous";
-        img.onload=function(){ objects.push({type:"image", img:img, x:50,y:50,w:100,h:100, angle:0, border:borderColorInput.value}); draw(); };
-        img.onerror=()=>alert("โหลดภาพจาก URL ไม่สำเร็จ"); img.src=url; e.target.value="";
-    }
-});
-
-// ข้อความ
-function addText(){
-    let text=prompt("พิมพ์ข้อความ:"); if(!text) return;
-    objects.push({type:"text", text:text, x:50,y:50, size:30, color:"red", angle:0});
-    draw();
-}
-
-// เลือก/ลาก/ย่อขยาย/หมุน
-canvas.addEventListener("mousedown", e=>{
+// Select / drag / resize / rotate
+canvas.addEventListener("mousedown",e=>{
     const rect=canvas.getBoundingClientRect();
     const mx=e.clientX-rect.left, my=e.clientY-rect.top;
-    selected=null; resizeCorner=null; rotating=false;
+    selected=null; resizing=false; resizeCorner=null; rotating=false;
     for(let i=objects.length-1;i>=0;i--){
-        const o=objects[i];
-        let cx=o.x+o.w/2, cy=o.y+o.h/2;
-        // Rotate handle (top center)
+        let o=objects[i]; let cx=o.x+o.w/2,cy=o.y+o.h/2;
         let rh={x:cx, y:o.y-20};
-        if(Math.hypot(mx-rh.x,my-rh.y)<10){ selected=o; rotating=true; return; }
-
-        // Corner resize
-        let corners=[
-            {x:o.x, y:o.y, pos:"nw"},
-            {x:o.x+o.w, y:o.y, pos:"ne"},
-            {x:o.x, y:o.y+o.h, pos:"sw"},
-            {x:o.x+o.w, y:o.y+o.h, pos:"se"}
-        ];
-        for(let c of corners){
-            if(Math.abs(mx-c.x)<10 && Math.abs(my-c.y)<10){ selected=o; resizing=true; resizeCorner=c.pos; return; }
-        }
-        if(mx>=o.x && mx<=o.x+o.w && my>=o.y && my<=o.y+o.h){ selected=o; dragOffsetX=mx-o.x; dragOffsetY=my-o.y; return; }
+        if(Math.hypot(mx-rh.x,my-rh.y)<10){ selected=o; rotating=true; return;}
+        let corners=[[o.x,o.y,"nw"],[o.x+o.w,o.y,"ne"],[o.x,o.y+o.h,"sw"],[o.x+o.w,o.y+o.h,"se"]];
+        for(let c of corners){if(Math.abs(mx-c[0])<10 && Math.abs(my-c[1])<10){selected=o; resizing=true; resizeCorner=c[2]; return;}}
+        if(mx>=o.x && mx<=o.x+o.w && my>=o.y && my<=o.y+o.h){selected=o; dragOffsetX=mx-o.x; dragOffsetY=my-o.y; return;}
     }
     draw();
 });
 
-canvas.addEventListener("mousemove", e=>{
-    if(!selected) return;
-    const rect=canvas.getBoundingClientRect();
-    const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+canvas.addEventListener("mousemove",e=>{
+    if(!selected)return; const rect=canvas.getBoundingClientRect(); const mx=e.clientX-rect.left,my=e.clientY-rect.top;
     if(resizing){
-        if(resizeCorner==="se"){ selected.w=Math.max(10,mx-selected.x); selected.h=Math.max(10,my-selected.y);}
-        if(resizeCorner==="sw"){ selected.w=Math.max(10,(selected.x+selected.w)-mx); selected.h=Math.max(10,my-selected.y); selected.x=(selected.x+selected.w)-selected.w;}
-        if(resizeCorner==="ne"){ selected.w=Math.max(10,mx-selected.x); selected.h=Math.max(10,(selected.y+selected.h)-my); selected.y=(selected.y+selected.h)-selected.h;}
-        if(resizeCorner==="nw"){ selected.w=Math.max(10,(selected.x+selected.w)-mx); selected.h=Math.max(10,(selected.y+selected.h)-my); selected.x=(selected.x+selected.w)-selected.w; selected.y=(selected.y+selected.h)-selected.h;}
-    } else if(rotating){
-        let cx=selected.x+selected.w/2, cy=selected.y+selected.h/2;
-        selected.angle=Math.atan2(my-cy,mx-cx)*180/Math.PI+90;
-    } else{
-        selected.x=mx-dragOffsetX; selected.y=my-dragOffsetY;
-    }
+        if(resizeCorner==="se"){selected.w=Math.max(10,mx-selected.x); selected.h=Math.max(10,my-selected.y);}
+        if(resizeCorner==="sw"){selected.w=Math.max(10,(selected.x+selected.w)-mx); selected.h=Math.max(10,my-selected.y); selected.x=(selected.x+selected.w)-selected.w;}
+        if(resizeCorner==="ne"){selected.w=Math.max(10,mx-selected.x); selected.h=Math.max(10,(selected.y+selected.h)-my); selected.y=(selected.y+selected.h)-selected.h;}
+        if(resizeCorner==="nw"){selected.w=Math.max(10,(selected.x+selected.w)-mx); selected.h=Math.max(10,(selected.y+selected.h)-my); selected.x=(selected.x+selected.w)-selected.w; selected.y=(selected.y+selected.h)-selected.h;}
+    } else if(rotating){ let cx=selected.x+selected.w/2, cy=selected.y+selected.h/2; selected.angle=Math.atan2(my-cy,mx-cx)*180/Math.PI+90;}
+    else{selected.x=mx-dragOffsetX; selected.y=my-dragOffsetY;}
     draw();
 });
+canvas.addEventListener("mouseup",e=>{selected=null; resizing=false; rotating=false; resizeCorner=null;});
+canvas.addEventListener("mouseleave",e=>{selected=null; resizing=false; rotating=false; resizeCorner=null;});
 
-canvas.addEventListener("mouseup", e=>{ selected=null; resizing=false; rotating=false; resizeCorner=null; });
-canvas.addEventListener("mouseleave", e=>{ selected=null; resizing=false; rotating=false; resizeCorner=null; });
+// Live text edit
+document.getElementById("textInput").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.text=e.target.value; saveHistory(); draw();}});
+document.getElementById("fontSize").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.size=parseInt(e.target.value); saveHistory(); draw();}});
+document.getElementById("fontColor").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.color=e.target.value; saveHistory(); draw();}});
+document.getElementById("fontSelect").addEventListener("change", e=>{if(selected && selected.type==="text"){selected.font=e.target.value; saveHistory(); draw();}});
+document.getElementById("boldCheck").addEventListener("change", e=>{if(selected && selected.type==="text"){selected.bold=e.target.checked; saveHistory(); draw();}});
+document.getElementById("italicCheck").addEventListener("change", e=>{if(selected && selected.type==="text"){selected.italic=e.target.checked; saveHistory(); draw();}});
 
-// วาด handles + rotate handle
-function drawHandles(){
-    if(!selected) return;
-    ctx.save(); ctx.strokeStyle="blue"; ctx.lineWidth=2;
-    ctx.strokeRect(selected.x,selected.y,selected.w,selected.h);
-    let corners=[
-        [selected.x,selected.y],
-        [selected.x+selected.w,selected.y],
-        [selected.x,selected.y+selected.h],
-        [selected.x+selected.w,selected.y+selected.h]
-    ];
-    for(let c of corners){ ctx.fillStyle="blue"; ctx.fillRect(c[0]-5,c[1]-5,10,10);}
-    // Rotate handle
-    ctx.fillStyle="red"; ctx.beginPath(); ctx.arc(selected.x+selected.w/2, selected.y-20,6,0,Math.PI*2); ctx.fill();
-    ctx.restore();
-}
+// Draw selection handles
+function drawHandles(){if(!selected)return; ctx.save(); ctx.strokeStyle="blue"; ctx.lineWidth=2; ctx.strokeRect(selected.x,selected.y,selected.w,selected.h);
+let corners=[[selected.x,selected.y],[selected.x+selected.w,selected.y],[selected.x,selected.y+selected.h],[selected.x+selected.w,selected.y+selected.h]];
+for(let c of corners){ctx.fillStyle="blue"; ctx.fillRect(c[0]-5,c[1]-5,10,10);}
+let cx=selected.x+selected.w/2; ctx.fillStyle="red"; ctx.beginPath(); ctx.arc(cx,selected.y-20,6,0,2*Math.PI); ctx.fill(); ctx.restore();}
 </script>
 </body>
 </html>
