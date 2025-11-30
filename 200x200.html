@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Advanced Image Editor 2025</title>
+<title>Pro Image Editor 2025</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 body {font-family:'Segoe UI', sans-serif; background:#f2f4f7; margin:0; padding:20px; display:flex; flex-direction:column; align-items:center;}
@@ -14,12 +14,13 @@ button {background:#2563eb; color:white; border:none; padding:8px 14px; border-r
 button:hover {background:#1e40af;}
 #previewBox {width:200px; height:200px; border:2px solid #000; overflow:hidden;}
 .input-group {margin:5px 0;}
-.handle {width:10px; height:10px; background:blue; position:absolute; cursor:pointer;}
+.handle {width:10px;height:10px;background:blue;position:absolute;cursor:pointer;}
+.rotate-handle {width:12px;height:12px;background:red;border-radius:50%;position:absolute;cursor:pointer;}
 </style>
 </head>
 <body>
 
-<h2>Advanced Image Editor 2025</h2>
+<h2>Pro Image Editor 2025</h2>
 <div class="container">
 
 <div class="card" style="position:relative;">
@@ -40,7 +41,7 @@ button:hover {background:#1e40af;}
 <button onclick="downloadPNG()">ดาวน์โหลด PNG</button>
 <button onclick="downloadGIF()">ดาวน์โหลด GIF</button>
 
-<canvas id="mainCanvas" width="600" height="500"></canvas>
+<canvas id="mainCanvas" width="700" height="500"></canvas>
 </div>
 
 <div class="card">
@@ -56,24 +57,22 @@ button:hover {background:#1e40af;}
 <script>
 const canvas=document.getElementById("mainCanvas"), ctx=canvas.getContext("2d");
 const previewCanvas=document.getElementById("previewCanvas"), pctx=previewCanvas.getContext("2d");
-
 let objects=[], selected=null, dragOffsetX=0, dragOffsetY=0;
-let resizing=false, resizeCorner=null, rotating=false, rotateStartAngle=0;
-
-const borderColorInput = document.getElementById("borderColor");
+let resizing=false, resizeCorner=null, rotating=false;
+const borderColorInput=document.getElementById("borderColor");
 
 function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
     for(let obj of objects){
         ctx.save();
-        ctx.translate(obj.x+obj.w/2,obj.y+obj.h/2);
+        let cx=obj.x+obj.w/2, cy=obj.y+obj.h/2;
+        ctx.translate(cx,cy);
         ctx.rotate((obj.angle||0)*Math.PI/180);
-        ctx.translate(-(obj.x+obj.w/2),-(obj.y+obj.h/2));
+        ctx.translate(-cx,-cy);
         if(obj.type==="image") ctx.drawImage(obj.img,obj.x,obj.y,obj.w,obj.h);
         else if(obj.type==="text"){ ctx.font=obj.size+"px Arial"; ctx.fillStyle=obj.color; ctx.fillText(obj.text,obj.x,obj.y);}
         if(obj.border){
-            ctx.strokeStyle=obj.border;
-            ctx.lineWidth=3;
+            ctx.strokeStyle=obj.border; ctx.lineWidth=3;
             ctx.strokeRect(obj.x,obj.y,obj.w,obj.h);
         }
         ctx.restore();
@@ -88,17 +87,17 @@ function updatePreview(){
 }
 
 function downloadPNG(){
-    const link=document.createElement("a");
+    let link=document.createElement("a");
     link.download="edited.png";
     link.href=canvas.toDataURL();
     link.click();
 }
 
 function downloadGIF(){
-    const gif = new GIF({workers:2, quality:10});
+    let gif=new GIF({workers:2, quality:10});
     gif.addFrame(canvas,{copy:true, delay:200});
     gif.on('finished', blob=>{
-        const link=document.createElement("a");
+        let link=document.createElement("a");
         link.href=URL.createObjectURL(blob);
         link.download="edited.gif";
         link.click();
@@ -133,5 +132,84 @@ document.getElementById("uploadDecoration").addEventListener("change", e=>{
 // URL
 document.getElementById("imageURL").addEventListener("keydown", e=>{
     if(e.key==="Enter"){
-        let url = e.target.value.trim(); if(!url) return;
+        let url=e.target.value.trim(); if(!url) return;
         let img=new Image(); img.crossOrigin="anonymous";
+        img.onload=function(){ objects.push({type:"image", img:img, x:50,y:50,w:100,h:100, angle:0, border:borderColorInput.value}); draw(); };
+        img.onerror=()=>alert("โหลดภาพจาก URL ไม่สำเร็จ"); img.src=url; e.target.value="";
+    }
+});
+
+// ข้อความ
+function addText(){
+    let text=prompt("พิมพ์ข้อความ:"); if(!text) return;
+    objects.push({type:"text", text:text, x:50,y:50, size:30, color:"red", angle:0});
+    draw();
+}
+
+// เลือก/ลาก/ย่อขยาย/หมุน
+canvas.addEventListener("mousedown", e=>{
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    selected=null; resizeCorner=null; rotating=false;
+    for(let i=objects.length-1;i>=0;i--){
+        const o=objects[i];
+        let cx=o.x+o.w/2, cy=o.y+o.h/2;
+        // Rotate handle (top center)
+        let rh={x:cx, y:o.y-20};
+        if(Math.hypot(mx-rh.x,my-rh.y)<10){ selected=o; rotating=true; return; }
+
+        // Corner resize
+        let corners=[
+            {x:o.x, y:o.y, pos:"nw"},
+            {x:o.x+o.w, y:o.y, pos:"ne"},
+            {x:o.x, y:o.y+o.h, pos:"sw"},
+            {x:o.x+o.w, y:o.y+o.h, pos:"se"}
+        ];
+        for(let c of corners){
+            if(Math.abs(mx-c.x)<10 && Math.abs(my-c.y)<10){ selected=o; resizing=true; resizeCorner=c.pos; return; }
+        }
+        if(mx>=o.x && mx<=o.x+o.w && my>=o.y && my<=o.y+o.h){ selected=o; dragOffsetX=mx-o.x; dragOffsetY=my-o.y; return; }
+    }
+    draw();
+});
+
+canvas.addEventListener("mousemove", e=>{
+    if(!selected) return;
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    if(resizing){
+        if(resizeCorner==="se"){ selected.w=Math.max(10,mx-selected.x); selected.h=Math.max(10,my-selected.y);}
+        if(resizeCorner==="sw"){ selected.w=Math.max(10,(selected.x+selected.w)-mx); selected.h=Math.max(10,my-selected.y); selected.x=(selected.x+selected.w)-selected.w;}
+        if(resizeCorner==="ne"){ selected.w=Math.max(10,mx-selected.x); selected.h=Math.max(10,(selected.y+selected.h)-my); selected.y=(selected.y+selected.h)-selected.h;}
+        if(resizeCorner==="nw"){ selected.w=Math.max(10,(selected.x+selected.w)-mx); selected.h=Math.max(10,(selected.y+selected.h)-my); selected.x=(selected.x+selected.w)-selected.w; selected.y=(selected.y+selected.h)-selected.h;}
+    } else if(rotating){
+        let cx=selected.x+selected.w/2, cy=selected.y+selected.h/2;
+        selected.angle=Math.atan2(my-cy,mx-cx)*180/Math.PI+90;
+    } else{
+        selected.x=mx-dragOffsetX; selected.y=my-dragOffsetY;
+    }
+    draw();
+});
+
+canvas.addEventListener("mouseup", e=>{ selected=null; resizing=false; rotating=false; resizeCorner=null; });
+canvas.addEventListener("mouseleave", e=>{ selected=null; resizing=false; rotating=false; resizeCorner=null; });
+
+// วาด handles + rotate handle
+function drawHandles(){
+    if(!selected) return;
+    ctx.save(); ctx.strokeStyle="blue"; ctx.lineWidth=2;
+    ctx.strokeRect(selected.x,selected.y,selected.w,selected.h);
+    let corners=[
+        [selected.x,selected.y],
+        [selected.x+selected.w,selected.y],
+        [selected.x,selected.y+selected.h],
+        [selected.x+selected.w,selected.y+selected.h]
+    ];
+    for(let c of corners){ ctx.fillStyle="blue"; ctx.fillRect(c[0]-5,c[1]-5,10,10);}
+    // Rotate handle
+    ctx.fillStyle="red"; ctx.beginPath(); ctx.arc(selected.x+selected.w/2, selected.y-20,6,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+}
+</script>
+</body>
+</html>
