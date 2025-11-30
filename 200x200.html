@@ -2,103 +2,85 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Image Editor + Resize Proportional + Border + 200x200 Preview</title>
+<title>Advanced Image Editor</title>
 <style>
-    body {
-        font-family: sans-serif;
-        display: flex;
-        gap: 20px;
-    }
-    #editorArea {
-        border: 1px solid #ccc;
-        position: relative;
-    }
-    canvas {
-        background: #f0f0f0;
-        cursor: pointer;
-    }
-    #previewBox {
-        border: 2px solid #000;
-        width: 200px;
-        height: 200px;
-        overflow: hidden;
-    }
-    #previewCanvas {
-        width: 200px;
-        height: 200px;
-    }
+body { font-family:sans-serif; display:flex; gap:20px; }
+#editorArea { border:1px solid #ccc; position:relative; }
+canvas { background:#f0f0f0; cursor:pointer; }
+#previewBox { border:2px solid #000; width:200px; height:200px; overflow:hidden; }
+#previewCanvas { width:200px; height:200px; }
 </style>
 </head>
 <body>
 
 <div>
-    <h3>ตัวแก้ไขรูป</h3>
+<h3>ตัวแก้ไขรูป</h3>
 
-    <input type="file" id="uploadBackground" accept="image/*"><br><br>
-    <input type="file" id="uploadDecoration" accept="image/*"><br><br>
-    <input type="color" id="borderColor" value="#000000"> เลือกสีกรอบ<br><br>
+<input type="file" id="uploadBackground" accept="image/*"><br><br>
+<input type="file" id="uploadImage1" accept="image/*"><br>
+<input type="file" id="uploadImage2" accept="image/*"><br>
+<input type="file" id="uploadImage3" accept="image/*"><br><br>
 
-    <button onclick="addText()">เพิ่มข้อความ</button>
-    <button onclick="downloadImage()">ดาวน์โหลด PNG</button>
+<label><input type="checkbox" id="keepAspect"> คงอัตราส่วนเดิม</label><br>
+<input type="color" id="borderColor" value="#000000"> เลือกสีกรอบ<br><br>
 
-    <br><br>
+<button onclick="addText()">เพิ่มข้อความ</button>
+<button onclick="downloadImage()">ดาวน์โหลด PNG</button>
 
-    <div id="editorArea">
-        <canvas id="mainCanvas" width="500" height="500"></canvas>
-    </div>
+<br><br>
+<div id="editorArea">
+    <canvas id="mainCanvas" width="500" height="500"></canvas>
+</div>
 </div>
 
 <div>
-    <h3>ตัวอย่าง 200×200</h3>
-    <div id="previewBox">
-        <canvas id="previewCanvas" width="200" height="200"></canvas>
-    </div>
+<h3>ตัวอย่าง 200×200</h3>
+<div id="previewBox">
+    <canvas id="previewCanvas" width="200" height="200"></canvas>
+</div>
 </div>
 
 <script>
-let canvas = document.getElementById("mainCanvas");
-let ctx = canvas.getContext("2d");
-let previewCanvas = document.getElementById("previewCanvas");
-let pctx = previewCanvas.getContext("2d");
+let canvas=document.getElementById("mainCanvas");
+let ctx=canvas.getContext("2d");
+let previewCanvas=document.getElementById("previewCanvas");
+let pctx=previewCanvas.getContext("2d");
 
-let objects = []; 
-let selected = null;
+let objects=[]; // all layers
+let selected=null;
 let dragOffsetX=0, dragOffsetY=0;
 let resizing=false;
 let aspectRatio=1;
 
-// โหลด background
-document.getElementById("uploadBackground").addEventListener("change", e=>{
-    let file=e.target.files[0];
+// ฟังก์ชันเพิ่มรูป
+function loadImage(file, callback){
     if(!file) return;
     let reader=new FileReader();
     reader.onload=function(evt){
         let img=new Image();
-        img.onload=function(){
-            objects[0]={type:"image", img:img, x:0,y:0,w:canvas.width,h:canvas.height,border:false,borderColor:"#000"};
-            draw();
-        };
+        img.onload=function(){ callback(img); };
         img.src=evt.target.result;
     };
     reader.readAsDataURL(file);
+}
+
+// background
+document.getElementById("uploadBackground").addEventListener("change",e=>{
+    loadImage(e.target.files[0], img=>{
+        objects[0]={type:"image", img:img, x:0,y:0,w:canvas.width,h:canvas.height,border:false,borderColor:"#000"};
+        draw();
+    });
 });
 
-// โหลด decoration
-document.getElementById("uploadDecoration").addEventListener("change", e=>{
-    let file=e.target.files[0];
-    if(!file) return;
-    let reader=new FileReader();
-    reader.onload=function(evt){
-        let img=new Image();
-        img.onload=function(){
-            let w=100;
-            let h=100;
+// decoration 3 รูป
+["uploadImage1","uploadImage2","uploadImage3"].forEach(id=>{
+    document.getElementById(id).addEventListener("change", e=>{
+        loadImage(e.target.files[0], img=>{
+            let w=100,h=100;
             objects.push({type:"image", img:img, x:50, y:50, w:w, h:h, border:true, borderColor:document.getElementById("borderColor").value});
             draw();
-        };
-        img.src=evt.target.result;
-    };
-    reader.readAsDataURL(file);
+        });
+    });
 });
 
 // เพิ่มข้อความ
@@ -113,7 +95,7 @@ function addText(){
 function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
     for(let obj of objects){
-        if(obj.type==="image") {
+        if(obj.type==="image"){
             ctx.drawImage(obj.img,obj.x,obj.y,obj.w,obj.h);
             if(obj.border){
                 ctx.strokeStyle=obj.borderColor;
@@ -127,7 +109,7 @@ function draw(){
             if(obj.border){
                 ctx.strokeStyle=obj.borderColor;
                 ctx.lineWidth=2;
-                ctx.strokeRect(obj.x, obj.y-obj.size, ctx.measureText(obj.text).width, obj.size);
+                ctx.strokeRect(obj.x,obj.y-obj.size,ctx.measureText(obj.text).width,obj.size);
             }
         }
     }
@@ -149,7 +131,7 @@ function downloadImage(){
     link.click();
 }
 
-// เลือกและลาก/ย่อขยายแบบคงอัตราส่วน
+// เลือก/ลาก/ย่อขยาย
 canvas.addEventListener("mousedown", e=>{
     const rect=canvas.getBoundingClientRect();
     const mx=e.clientX-rect.left;
@@ -168,7 +150,7 @@ canvas.addEventListener("mousedown", e=>{
             ctx.font=o.size+"px Arial";
             const w=ctx.measureText(o.text).width;
             const h=o.size;
-            if(mx>=o.x && mx<=o.x+w && my<=o.y && my>=my-h){
+            if(mx>=o.x && mx<=o.x+w && my<=o.y && my>=o.y-h){
                 selected=o;
                 dragOffsetX=mx-o.x;
                 dragOffsetY=my-o.y;
@@ -187,17 +169,22 @@ canvas.addEventListener("mousemove", e=>{
     const rect=canvas.getBoundingClientRect();
     const mx=e.clientX-rect.left;
     const my=e.clientY-rect.top;
+    let keepAspect=document.getElementById("keepAspect").checked;
     if(resizing){
         if(selected.type==="image"){
-            let newW=Math.max(10,mx-selected.x);
-            let newH=newW/aspectRatio;
-            selected.w=newW;
-            selected.h=newH;
-        }else if(selected.type==="text"){
-            let newSize=Math.max(10,my-selected.y);
-            selected.size=newSize;
+            if(keepAspect){
+                let newW=Math.max(10,mx-selected.x);
+                let newH=newW/aspectRatio;
+                selected.w=newW;
+                selected.h=newH;
+            } else {
+                selected.w=Math.max(10,mx-selected.x);
+                selected.h=Math.max(10,my-selected.y);
+            }
+        } else if(selected.type==="text"){
+            selected.size=Math.max(10,my-selected.y);
         }
-    }else{
+    } else {
         selected.x=mx-dragOffsetX;
         selected.y=my-dragOffsetY;
     }
@@ -222,7 +209,7 @@ function drawHandles(){
         ctx.strokeRect(selected.x,selected.y,selected.w,selected.h);
         ctx.fillStyle="blue";
         ctx.fillRect(selected.x+selected.w-5,selected.y+selected.h-5,10,10);
-    }else if(selected.type==="text"){
+    } else if(selected.type==="text"){
         ctx.strokeRect(selected.x,selected.y-selected.size,ctx.measureText(selected.text).width,selected.size);
         ctx.fillStyle="blue";
         ctx.fillRect(selected.x+ctx.measureText(selected.text).width-5,selected.y-5,10,10);
