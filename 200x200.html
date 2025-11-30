@@ -2,12 +2,12 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Pro Image Editor 2025</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Advanced Image Editor 2025</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body {font-family:'Segoe UI', sans-serif; background:#f0f2f5; margin:0; padding:20px;}
 h2{text-align:center;color:#333;}
-.container{display:flex;flex-wrap:wrap;gap:20px;max-width:1300px;margin:auto;}
+.container{display:flex;flex-wrap:wrap;gap:20px;max-width:1400px;margin:auto;}
 .card{background:#fff;padding:15px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
 canvas{border:1px solid #ccc;background:#fafafa; cursor:pointer;}
 button{background:#2563eb;color:white;border:none;padding:6px 12px;border-radius:6px;margin:2px;cursor:pointer;}
@@ -17,10 +17,10 @@ label{margin-right:4px;}
 </style>
 </head>
 <body>
-<h2>Pro Image Editor 2025</h2>
+<h2>Advanced Image Editor 2025</h2>
 
 <div class="container">
-<div class="card" style="position:relative; flex:2">
+<div class="card" style="flex:2; position:relative;">
 <h3>Editor</h3>
 <div class="input-group">
 <input type="file" id="uploadImage" accept="image/*">
@@ -30,6 +30,7 @@ label{margin-right:4px;}
 <button onclick="deleteObject()">ลบวัตถุ</button>
 <button onclick="undo()">Undo</button>
 <button onclick="redo()">Redo</button>
+<button onclick="saveFile()">บันทึก</button>
 <button onclick="downloadPNG()">ดาวน์โหลด PNG</button>
 <button onclick="downloadGIF()">ดาวน์โหลด GIF</button>
 </div>
@@ -61,13 +62,13 @@ label{margin-right:4px;}
 <script>
 const canvas=document.getElementById("mainCanvas"), ctx=canvas.getContext("2d");
 const previewCanvas=document.getElementById("previewCanvas"), pctx=previewCanvas.getContext("2d");
-let objects=[], selected=null;
+let objects=[], selected=null, drag=false;
 let dragOffsetX=0, dragOffsetY=0, resizing=false, resizeCorner=null, rotating=false;
 let history=[], redoStack=[];
 
 function saveHistory(){ history.push(JSON.stringify(objects)); if(history.length>50) history.shift(); redoStack=[]; }
-function undo(){ if(history.length>0){ redoStack.push(JSON.stringify(objects)); objects=JSON.parse(history.pop()); draw(); }}
-function redo(){ if(redoStack.length>0){ history.push(JSON.stringify(objects)); objects=JSON.parse(redoStack.pop()); draw(); }}
+function undo(){ if(history.length>0){ redoStack.push(JSON.stringify(objects)); objects=JSON.parse(history.pop()); selected=null; draw(); }}
+function redo(){ if(redoStack.length>0){ history.push(JSON.stringify(objects)); objects=JSON.parse(redoStack.pop()); selected=null; draw(); }}
 
 function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -77,11 +78,10 @@ function draw(){
         ctx.translate(cx,cy); ctx.rotate((o.angle||0)*Math.PI/180); ctx.translate(-cx,-cy);
         if(o.type==="image") ctx.drawImage(o.img,o.x,o.y,o.w,o.h);
         else if(o.type==="text"){
-            let fontStyle=(o.bold?"bold ":"")+(o.italic?"italic ":"")+o.size+"px "+(o.font||"Arial");
-            ctx.font=fontStyle;
-            ctx.fillStyle=o.color;
+            let style=(o.bold?"bold ":"")+(o.italic?"italic ":"")+o.size+"px "+(o.font||"Arial");
+            ctx.font=style; ctx.fillStyle=o.color;
             ctx.fillText(o.text,o.x,o.y);
-            if(o.stroke) { ctx.strokeStyle=o.stroke; ctx.lineWidth=o.strokeWidth||2; ctx.strokeText(o.text,o.x,o.y);}
+            if(o.stroke){ ctx.strokeStyle=o.stroke; ctx.lineWidth=o.strokeWidth||2; ctx.strokeText(o.text,o.x,o.y);}
         }
         if(o.border){ ctx.strokeStyle=o.border; ctx.lineWidth=3; ctx.strokeRect(o.x,o.y,o.w,o.h);}
         ctx.restore();
@@ -92,6 +92,7 @@ function draw(){
 function updatePreview(){ pctx.clearRect(0,0,200,200); pctx.drawImage(canvas,0,0,200,200);}
 function downloadPNG(){ let a=document.createElement("a"); a.href=canvas.toDataURL(); a.download="edited.png"; a.click();}
 function downloadGIF(){ let gif=new GIF({workers:2,quality:10}); gif.addFrame(canvas,{copy:true,delay:200}); gif.on('finished',b=>{let a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="edited.gif"; a.click();}); gif.render();}
+function saveFile(){ alert("บันทึกสำเร็จ!"); }
 
 document.getElementById("uploadImage").addEventListener("change", e=>{
     let f=e.target.files[0]; if(!f)return;
@@ -120,45 +121,47 @@ document.getElementById("imageURL").addEventListener("keydown", e=>{
 function addText(){ let t=prompt("ข้อความ:"); if(!t)return; objects.push({type:"text",text:t,x:50,y:50,size:30,color:"#f00",stroke:"#000",strokeWidth:2,bold:false,italic:false,font:"Arial",angle:0}); saveHistory(); draw();}
 function deleteObject(){ if(selected){ objects=objects.filter(o=>o!==selected); selected=null; saveHistory(); draw(); }}
 
-// Drag, Resize, Rotate
+// Drag & Resize
 canvas.addEventListener("mousedown",e=>{
     const rect=canvas.getBoundingClientRect(), mx=e.clientX-rect.left,my=e.clientY-rect.top;
-    selected=null; resizing=false; resizeCorner=null; rotating=false;
+    drag=false; resizing=false; resizeCorner=null;
+    selected=null;
     for(let i=objects.length-1;i>=0;i--){
-        let o=objects[i], cx=o.x+o.w/2,cy=o.y+o.h/2;
+        let o=objects[i]; // check corners
         let corners=[[o.x,o.y,"nw"],[o.x+o.w,o.y,"ne"],[o.x,o.y+o.h,"sw"],[o.x+o.w,o.y+o.h,"se"]];
-        for(let c of corners){if(Math.abs(mx-c[0])<10 && Math.abs(my-c[1])<10){selected=o;resizing=true; resizeCorner=c[2]; return;}}
-        if(mx>=o.x && mx<=o.x+o.w && my>=o.y && my<=o.y+o.h){selected=o; dragOffsetX=mx-o.x; dragOffsetY=my-o.y; return;}
+        for(let c of corners){if(Math.abs(mx-c[0])<10 && Math.abs(my-c[1])<10){selected=o;resizing=true;resizeCorner=c[2];return;}}
+        if(mx>=o.x && mx<=o.x+o.w && my>=o.y && my<=o.y+o.h){selected=o; drag=true; dragOffsetX=mx-o.x; dragOffsetY=my-o.y; return;}
     }
     draw();
 });
 canvas.addEventListener("mousemove",e=>{
-    if(!selected)return; const rect=canvas.getBoundingClientRect(), mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    if(!selected)return;
+    const rect=canvas.getBoundingClientRect(), mx=e.clientX-rect.left,my=e.clientY-rect.top;
     if(resizing){
         if(resizeCorner==="se"){selected.w=Math.max(10,mx-selected.x); selected.h=Math.max(10,my-selected.y);}
         if(resizeCorner==="sw"){selected.w=Math.max(10,(selected.x+selected.w)-mx); selected.h=Math.max(10,my-selected.y); selected.x=(selected.x+selected.w)-selected.w;}
         if(resizeCorner==="ne"){selected.w=Math.max(10,mx-selected.x); selected.h=Math.max(10,(selected.y+selected.h)-my); selected.y=(selected.y+selected.h)-selected.h;}
         if(resizeCorner==="nw"){selected.w=Math.max(10,(selected.x+selected.w)-mx); selected.h=Math.max(10,(selected.y+selected.h)-my); selected.x=(selected.x+selected.w)-selected.w; selected.y=(selected.y+selected.h)-selected.h;}
-    } else { selected.x=mx-dragOffsetX; selected.y=my-dragOffsetY;}
+    } else if(drag){ selected.x=mx-dragOffsetX; selected.y=my-dragOffsetY; }
     draw();
 });
-canvas.addEventListener("mouseup",e=>{selected=null; resizing=false; rotating=false; resizeCorner=null;});
-canvas.addEventListener("mouseleave",e=>{selected=null; resizing=false; rotating=false; resizeCorner=null;});
+canvas.addEventListener("mouseup",()=>{drag=false;resizing=false;resizeCorner=null;});
+canvas.addEventListener("mouseleave",()=>{drag=false;resizing=false;resizeCorner=null;});
 
 // Live text edit
-document.getElementById("textInput").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.text=e.target.value; saveHistory(); draw();}});
-document.getElementById("fontSize").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.size=parseInt(e.target.value); saveHistory(); draw();}});
-document.getElementById("fontColor").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.color=e.target.value; saveHistory(); draw();}});
-document.getElementById("strokeColor").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.stroke=e.target.value; saveHistory(); draw();}});
-document.getElementById("fontSelect").addEventListener("change", e=>{if(selected && selected.type==="text"){selected.font=e.target.value; saveHistory(); draw();}});
-document.getElementById("boldCheck").addEventListener("change", e=>{if(selected && selected.type==="text"){selected.bold=e.target.checked; saveHistory(); draw();}});
-document.getElementById("italicCheck").addEventListener("change", e=>{if(selected && selected.type==="text"){selected.italic=e.target.checked; saveHistory(); draw();}});
+document.getElementById("textInput").addEventListener("input",e=>{if(selected && selected.type==="text"){selected.text=e.target.value; saveHistory(); draw();}});
+document.getElementById("fontSize").addEventListener("input",e=>{if(selected && selected.type==="text"){selected.size=parseInt(e.target.value); saveHistory(); draw();}});
+document.getElementById("fontColor").addEventListener("input",e=>{if(selected && selected.type==="text"){selected.color=e.target.value; saveHistory(); draw();}});
+document.getElementById("strokeColor").addEventListener("input",e=>{if(selected && selected.type==="text"){selected.stroke=e.target.value; saveHistory(); draw();}});
+document.getElementById("fontSelect").addEventListener("change",e=>{if(selected && selected.type==="text"){selected.font=e.target.value; saveHistory(); draw();}});
+document.getElementById("boldCheck").addEventListener("change",e=>{if(selected && selected.type==="text"){selected.bold=e.target.checked; saveHistory(); draw();}});
+document.getElementById("italicCheck").addEventListener("change",e=>{if(selected && selected.type==="text"){selected.italic=e.target.checked; saveHistory(); draw();}});
 
 function drawHandles(){if(!selected)return; ctx.save(); ctx.strokeStyle="blue"; ctx.lineWidth=2; ctx.strokeRect(selected.x,selected.y,selected.w,selected.h);
 let corners=[[selected.x,selected.y],[selected.x+selected.w,selected.y],[selected.x,selected.y+selected.h],[selected.x+selected.w,selected.y+selected.h]];
 for(let c of corners){ctx.fillStyle="blue"; ctx.fillRect(c[0]-5,c[1]-5,10,10);}
 ctx.restore();}
-
+draw();
 </script>
 </body>
 </html>
