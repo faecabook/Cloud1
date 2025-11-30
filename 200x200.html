@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Image Editor Pro + 200x200 Preview</title>
+<title>Image Editor + Multi Images + 200x200 Preview</title>
 <style>
     body {
         font-family: sans-serif;
@@ -12,10 +12,10 @@
     #editorArea {
         border: 1px solid #ccc;
         position: relative;
-        cursor: grab;
     }
     canvas {
         background: #f0f0f0;
+        cursor: pointer;
     }
     #previewBox {
         border: 2px solid #000;
@@ -32,9 +32,10 @@
 <body>
 
 <div>
-    <h3>เครื่องมือแก้ไขรูป</h3>
+    <h3>ตัวแก้ไขรูป</h3>
 
-    <input type="file" id="uploadImage" accept="image/*"><br><br>
+    <input type="file" id="uploadBackground" accept="image/*"><br><br>
+    <input type="file" id="uploadDecoration" accept="image/*"><br><br>
 
     <button onclick="addText()">เพิ่มข้อความ</button>
     <button onclick="downloadImage()">ดาวน์โหลด PNG</button>
@@ -47,7 +48,7 @@
 </div>
 
 <div>
-    <h3>พรีวิว 200×200</h3>
+    <h3>ตัวอย่าง 200×200</h3>
     <div id="previewBox">
         <canvas id="previewCanvas" width="200" height="200"></canvas>
     </div>
@@ -60,70 +61,119 @@ let ctx = canvas.getContext("2d");
 let previewCanvas = document.getElementById("previewCanvas");
 let pctx = previewCanvas.getContext("2d");
 
-// -----------------------
-// วัตถุทั้งหมด: รูป + ข้อความ
-// -----------------------
-let objects = [];
+let objects = []; // เก็บทุก layer: background, decoration, text
+let selected = null;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
 
-let activeObject = null;
-let dragging = false;
-let resizing = false;
-
-// อัปโหลดรูป
-document.getElementById("uploadImage").addEventListener("change", function (e) {
+// โหลด background
+document.getElementById("uploadBackground").addEventListener("change", function (e) {
     let file = e.target.files[0];
     if (!file) return;
-
     let reader = new FileReader();
     reader.onload = function (evt) {
         let img = new Image();
         img.onload = function () {
-            objects.push({
-                type: "image",
-                img: img,
-                x: 50,
-                y: 50,
-                w: img.width / 2,
-                h: img.height / 2
-            });
-            drawAll();
+            objects[0] = { type: "image", img: img, x:0, y:0, w: canvas.width, h: canvas.height };
+            draw();
         };
         img.src = evt.target.result;
     };
     reader.readAsDataURL(file);
 });
 
-// เพิ่มข้อความ
-function addText() {
-    objects.push({
-        type: "text",
-        text: "ข้อความ",
-        x: 100,
-        y: 100,
-        w: 150,
-        h: 50,
-        fontSize: 40,
-        color: "red"
-    });
-    drawAll();
-}
+// โหลด decoration
+document.getElementById("uploadDecoration").addEventListener("change", function (e) {
+    let file = e.target.files[0];
+    if (!file) return;
+    let reader = new FileReader();
+    reader.onload = function (evt) {
+        let img = new Image();
+        img.onload = function () {
+            objects.push({ type:"image", img: img, x:50, y:50, w:100, h:100 });
+            draw();
+        };
+        img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+});
 
-// ตรวจว่าคลิกโดน object ไหน
-function getObjectAt(x, y) {
-    for (let i = objects.length - 1; i >= 0; i--) {
-        let o = objects[i];
-        if (
-            x >= o.x && x <= o.x + o.w &&
-            y >= o.y && y <= o.y + o.h
-        ) {
-            return o;
+// วาดทุก layer
+function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for (let obj of objects) {
+        if (obj.type === "image") ctx.drawImage(obj.img, obj.x, obj.y, obj.w, obj.h);
+        else if (obj.type === "text") {
+            ctx.font = obj.size + "px Arial";
+            ctx.fillStyle = obj.color;
+            ctx.fillText(obj.text, obj.x, obj.y);
         }
     }
-    return null;
+    updatePreview();
 }
 
-// เมื่อคลิกเมาส์
-canvas.addEventListener("mousedown", function (e) {
-    let rect = canvas.getBoundingClientRect();
-    let x = e.clientX - rect.left;
-    let y = e
+// พรีวิว 200x200
+function updatePreview() {
+    pctx.clearRect(0,0,200,200);
+    pctx.drawImage(canvas, 0,0,200,200);
+}
+
+// เพิ่มข้อความ
+function addText() {
+    let text = prompt("พิมพ์ข้อความ:");
+    if (!text) return;
+    objects.push({ type:"text", text:text, x:50, y:50, size:30, color:"red" });
+    draw();
+}
+
+// ดาวน์โหลด PNG
+function downloadImage() {
+    let link = document.createElement("a");
+    link.download = "edited.png";
+    link.href = canvas.toDataURL();
+    link.click();
+}
+
+// เลือกและลาก
+canvas.addEventListener("mousedown", e=>{
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    for (let i = objects.length-1; i>=0; i--) {
+        let o = objects[i];
+        if (o.type==="image" && mx>=o.x && mx<=o.x+o.w && my>=o.y && my<=o.y+o.h) {
+            selected = o;
+            dragOffsetX = mx - o.x;
+            dragOffsetY = my - o.y;
+            return;
+        } else if (o.type==="text") {
+            ctx.font = o.size + "px Arial";
+            const w = ctx.measureText(o.text).width;
+            const h = o.size;
+            if (mx>=o.x && mx<=o.x+w && my<=o.y && my>=o.y-h) {
+                selected=o;
+                dragOffsetX = mx - o.x;
+                dragOffsetY = my - o.y;
+                return;
+            }
+        }
+    }
+    selected=null;
+});
+
+canvas.addEventListener("mousemove", e=>{
+    if (!selected) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    selected.x = mx - dragOffsetX;
+    selected.y = my - dragOffsetY;
+    draw();
+});
+
+canvas.addEventListener("mouseup", e=>{ selected=null; });
+canvas.addEventListener("mouseleave", e=>{ selected=null; });
+
+</script>
+</body>
+</html>
