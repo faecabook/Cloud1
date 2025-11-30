@@ -4,26 +4,24 @@
 <meta charset="UTF-8">
 <title>Pro Image Editor 2025</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
 <style>
-body {font-family:'Segoe UI', sans-serif; background:#f0f2f5; margin:0; padding:20px;}
-h2{text-align:center;color:#333;}
-.container{display:flex;flex-wrap:wrap;gap:20px;max-width:1300px;margin:auto;}
-.card{background:#fff;padding:15px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
-canvas{border:1px solid #ccc;background:#fafafa; cursor:pointer;}
-button{background:#2563eb;color:white;border:none;padding:6px 12px;border-radius:6px;margin:2px;cursor:pointer;}
+body {margin:0; font-family:'Segoe UI', sans-serif; background:#f0f2f5;}
+header{padding:15px;text-align:center; background:#2563eb; color:white;}
+.container{display:flex; flex-wrap:wrap; gap:15px; padding:15px; max-width:1400px; margin:auto;}
+.card{background:white; padding:15px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);}
+canvas{border:1px solid #ccc; cursor:pointer;}
+button,input,select{margin:2px; padding:6px 10px; border-radius:6px; border:1px solid #ccc;}
+button{background:#2563eb; color:white; border:none; cursor:pointer;}
 button:hover{background:#1e40af;}
-.input-group{margin:5px 0;}
-label{margin-right:4px;}
-.handle{position:absolute;width:10px;height:10px;background:#fff;border:2px solid #2563eb;box-sizing:border-box;}
+.panel{display:flex; flex-direction:column; gap:5px; margin-bottom:10px;}
 </style>
 </head>
 <body>
-<h2>Pro Image Editor 2025</h2>
-
+<header><h2>Pro Image Editor 2025</h2></header>
 <div class="container">
-<div class="card" style="position:relative; flex:2">
-<h3>Editor</h3>
-<div class="input-group">
+<div class="card" style="flex:2; min-width:700px;">
+<div class="panel">
 <input type="file" id="uploadImage" accept="image/*">
 <input type="file" id="uploadSticker" accept="image/*">
 <input type="text" id="imageURL" placeholder="วาง URL แล้ว Enter">
@@ -35,7 +33,7 @@ label{margin-right:4px;}
 <button onclick="downloadGIF()">ดาวน์โหลด GIF</button>
 </div>
 
-<div class="input-group">
+<div class="panel">
 <label>ข้อความ:</label>
 <input type="text" id="textInput" placeholder="แก้ข้อความ">
 <label>Font:</label>
@@ -48,14 +46,13 @@ label{margin-right:4px;}
 <label>Bold:</label><input type="checkbox" id="boldCheck">
 <label>Italic:</label><input type="checkbox" id="italicCheck">
 <label>Border Color:</label><input type="color" id="borderColor" value="#0000ff">
+<label>Opacity:</label><input type="range" id="opacityRange" min="0" max="1" step="0.05" value="1">
 </div>
 
-<div id="canvasWrap" style="position:relative;">
-<canvas id="mainCanvas" width="800" height="600"></canvas>
-</div>
+<canvas id="canvas" width="800" height="600"></canvas>
 </div>
 
-<div class="card">
+<div class="card" style="flex:1; min-width:220px;">
 <h3>Preview 200x200</h3>
 <canvas id="previewCanvas" width="200" height="200"></canvas>
 </div>
@@ -63,136 +60,75 @@ label{margin-right:4px;}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
 <script>
-const canvas=document.getElementById("mainCanvas"), ctx=canvas.getContext("2d");
-const previewCanvas=document.getElementById("previewCanvas"), pctx=previewCanvas.getContext("2d");
-const wrap=document.getElementById("canvasWrap");
-let objects=[], selected=null;
-let drag=false, resizeHandle=null, dragOffsetX=0, dragOffsetY=0;
+const canvas = new fabric.Canvas('canvas', { preserveObjectStacking:true });
+const preview = document.getElementById('previewCanvas');
+const pctx = preview.getContext('2d');
 let history=[], redoStack=[];
 
-function saveHistory(){ history.push(JSON.stringify(objects)); if(history.length>50) history.shift(); redoStack=[]; }
-function undo(){ if(history.length>0){ redoStack.push(JSON.stringify(objects)); objects=JSON.parse(history.pop()); draw();}}
-function redo(){ if(redoStack.length>0){ history.push(JSON.stringify(objects)); objects=JSON.parse(redoStack.pop()); draw();}}
+function saveHistory(){ history.push(JSON.stringify(canvas.toJSON())); if(history.length>50) history.shift(); redoStack=[]; }
+function undo(){ if(history.length>0){ redoStack.push(JSON.stringify(canvas.toJSON())); canvas.loadFromJSON(history.pop(), canvas.renderAll.bind(canvas)); }}
+function redo(){ if(redoStack.length>0){ history.push(JSON.stringify(canvas.toJSON())); canvas.loadFromJSON(redoStack.pop(), canvas.renderAll.bind(canvas)); }}
 
-function draw(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    for(let o of objects){
-        ctx.save();
-        ctx.translate(o.x+o.w/2,o.y+o.h/2);
-        ctx.rotate((o.angle||0)*Math.PI/180);
-        ctx.translate(-(o.x+o.w/2),-(o.y+o.h/2));
-        if(o.type==="image"){
-            ctx.drawImage(o.img,o.x,o.y,o.w,o.h);
-            if(o.border){ctx.strokeStyle=o.border; ctx.lineWidth=3; ctx.strokeRect(o.x,o.y,o.w,o.h);}
-        }
-        else if(o.type==="text"){
-            let fstyle=(o.bold?"bold ":"")+(o.italic?"italic ":"")+o.size+"px "+o.font;
-            ctx.font=fstyle; ctx.fillStyle=o.color;
-            ctx.fillText(o.text,o.x,o.y+o.size);
-            if(o.stroke){ctx.strokeStyle=o.stroke;ctx.lineWidth=2;ctx.strokeText(o.text,o.x,o.y+o.size);}
-            if(o.border){ctx.strokeStyle=o.border;ctx.lineWidth=2;ctx.strokeRect(o.x,o.y,o.w,o.h);}
-        }
-        ctx.restore();
-    }
-    drawHandles();
-    updatePreview();
+canvas.on('object:modified', saveHistory);
+canvas.on('object:added', saveHistory);
+
+document.getElementById('uploadImage').addEventListener('change', e=>{
+    const f = e.target.files[0]; if(!f)return;
+    const reader=new FileReader(); reader.onload=function(ev){
+        fabric.Image.fromURL(ev.target.result, img=>{
+            img.set({left:50, top:50, width:200, height:200, border:'', selectable:true});
+            canvas.add(img); saveHistory();
+        }, {crossOrigin:'anonymous'});
+    }; reader.readAsDataURL(f);
+});
+document.getElementById('uploadSticker').addEventListener('change', e=>{
+    const f=e.target.files[0]; if(!f)return;
+    const reader=new FileReader(); reader.onload=function(ev){
+        fabric.Image.fromURL(ev.target.result, img=>{
+            img.set({left:100, top:100, width:100, height:100, border:'#00f', selectable:true});
+            canvas.add(img); saveHistory();
+        }, {crossOrigin:'anonymous'});
+    }; reader.readAsDataURL(f);
+});
+document.getElementById('imageURL').addEventListener('keydown', e=>{
+    if(e.key==="Enter"){ const url=e.target.value.trim(); if(!url)return;
+        fabric.Image.fromURL(url,img=>{ img.set({left:50, top:50, width:150, height:150, border:'#00f'}); canvas.add(img); saveHistory(); drawPreview(); }, {crossOrigin:'anonymous'}); e.target.value=''; } 
+});
+
+function addText(){
+    const t=prompt("ข้อความ:"); if(!t)return;
+    const text=new fabric.Textbox(t,{left:50, top:50, fontSize:30, fill:'#f00', stroke:'#000', strokeWidth:1, fontFamily:'Arial', fontWeight:'normal', fontStyle:'normal', border:'', opacity:1});
+    canvas.add(text); saveHistory();
 }
 
-function drawHandles(){
-    // remove old
-    document.querySelectorAll(".handle").forEach(h=>h.remove());
-    if(!selected) return;
-    let corners=[ ["nw",selected.x,selected.y],["ne",selected.x+selected.w,selected.y],
-                  ["sw",selected.x,selected.y+selected.h],["se",selected.x+selected.w,selected.y+selected.h] ];
-    for(let c of corners){
-        let div=document.createElement("div");
-        div.className="handle";
-        div.dataset.pos=c[0];
-        div.style.left=c[1]-6+"px";
-        div.style.top=c[2]-6+"px";
-        wrap.appendChild(div);
-        div.addEventListener("mousedown", startResize);
-    }
+function deleteObject(){ const active=canvas.getActiveObject(); if(active){ canvas.remove(active); saveHistory(); }}
+
+document.getElementById('textInput').addEventListener('input', e=>{
+    const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.text = e.target.value; canvas.renderAll(); saveHistory(); }
+});
+document.getElementById('fontSize').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fontSize=parseInt(e.target.value); canvas.renderAll(); saveHistory(); }});
+document.getElementById('fontColor').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fill=e.target.value; canvas.renderAll(); saveHistory(); }});
+document.getElementById('strokeColor').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.stroke=e.target.value; canvas.renderAll(); saveHistory(); }});
+document.getElementById('fontSelect').addEventListener('change', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fontFamily=e.target.value; canvas.renderAll(); saveHistory(); }});
+document.getElementById('boldCheck').addEventListener('change', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fontWeight=e.target.checked?'bold':'normal'; canvas.renderAll(); saveHistory(); }});
+document.getElementById('italicCheck').addEventListener('change', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fontStyle=e.target.checked?'italic':'normal'; canvas.renderAll(); saveHistory(); }});
+document.getElementById('borderColor').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj){ obj.stroke=e.target.value; canvas.renderAll(); saveHistory(); }});
+document.getElementById('opacityRange').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj){ obj.opacity=parseFloat(e.target.value); canvas.renderAll(); saveHistory(); }});
+
+function drawPreview(){
+    pctx.clearRect(0,0,200,200);
+    pctx.drawImage(canvas.lowerCanvasEl,0,0,200,200);
 }
+canvas.on('after:render', drawPreview);
 
-function updatePreview(){ pctx.clearRect(0,0,200,200); pctx.drawImage(canvas,0,0,200,200); }
+function downloadPNG(){ const dataURL = canvas.toDataURL({format:'png'}); const a=document.createElement('a'); a.href=dataURL; a.download='edited.png'; a.click(); }
 
-function downloadPNG(){ let a=document.createElement("a"); a.href=canvas.toDataURL(); a.download="edited.png"; a.click(); }
-function downloadGIF(){ let gif=new GIF({workers:2,quality:10}); gif.addFrame(canvas,{copy:true,delay:200}); gif.on('finished',b=>{let a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="edited.gif";a.click();}); gif.render();}
-
-document.getElementById("uploadImage").addEventListener("change", e=>{
-    let f=e.target.files[0]; if(!f)return;
-    let r=new FileReader(); r.onload=function(ev){
-        let img=new Image(); img.onload=function(){ objects.push({type:"image",img:img,x:50,y:50,w:200,h:200,angle:0,border:null}); saveHistory(); draw();}; img.src=ev.target.result;
-    }; r.readAsDataURL(f);
-});
-document.getElementById("uploadSticker").addEventListener("change", e=>{
-    let f=e.target.files[0]; if(!f)return;
-    let r=new FileReader(); r.onload=function(ev){
-        let img=new Image(); img.onload=function(){ objects.push({type:"image",img:img,x:100,y:100,w:100,h:100,angle:0,border:"#00f"}); saveHistory(); draw();}; img.src=ev.target.result;
-    }; r.readAsDataURL(f);
-});
-document.getElementById("imageURL").addEventListener("keydown", e=>{
-    if(e.key==="Enter"){ let url=e.target.value.trim(); if(!url)return;
-        let img=new Image(); img.crossOrigin="anonymous";
-        img.onload=function(){ objects.push({type:"image",img:img,x:50,y:50,w:150,h:150,border:"#00f"}); saveHistory(); draw();};
-        img.onerror=()=>alert("โหลดภาพไม่สำเร็จ"); img.src=url; e.target.value="";
-    }
-});
-
-function addText(){ let t=prompt("ข้อความ:"); if(!t)return;
-objects.push({type:"text",text:t,x:50,y:50,size:30,color:"#f00",stroke:"#000",strokeWidth:2,bold:false,italic:false,font:"Arial",angle:0,w:ctx.measureText(t).width,h:30,border:null}); saveHistory(); draw(); }
-function deleteObject(){ if(selected){ objects=objects.filter(o=>o!==selected); selected=null; saveHistory(); draw(); }}
-
-// select
-canvas.addEventListener("mousedown", e=>{
-    const rect=canvas.getBoundingClientRect(), mx=e.clientX-rect.left,my=e.clientY-rect.top;
-    drag=false; selected=null; resizeHandle=null;
-    for(let i=objects.length-1;i>=0;i--){
-        let o=objects[i];
-        if(o.type==="text"){ let w=ctx.measureText(o.text).width, h=o.size; if(mx>=o.x && mx<=o.x+w && my>=o.y && my<=o.y+h){ selected=o; drag=true; dragOffsetX=mx-o.x; dragOffsetY=my-o.y; draw(); return;} }
-        else{ if(mx>=o.x && mx<=o.x+o.w && my>=o.y && my<=o.y+o.h){ selected=o; drag=true; dragOffsetX=mx-o.x; dragOffsetY=my-o.y; draw(); return; } }
-    }
-    draw();
-});
-canvas.addEventListener("mousemove", e=>{
-    if(!drag || !selected) return;
-    const rect=canvas.getBoundingClientRect(), mx=e.clientX-rect.left,my=e.clientY-rect.top;
-    selected.x=mx-dragOffsetX; selected.y=my-dragOffsetY;
-    draw();
-});
-canvas.addEventListener("mouseup", e=>{ drag=false; resizeHandle=null; });
-
-// resize
-function startResize(e){
-    resizeHandle=e.target.dataset.pos; selected=objects.find(o=>{
-        let corners=[ ["nw",o.x,o.y],["ne",o.x+o.w,o.y],["sw",o.x,o.y+o.h],["se",o.x+o.w,o.y+o.h] ];
-        return corners.some(c=>c[0]===resizeHandle);
-    });
-    document.addEventListener("mousemove", doResize);
-    document.addEventListener("mouseup", stopResize);
+function downloadGIF(){
+    const gif=new GIF({workers:2,quality:10});
+    gif.addFrame(canvas.lowerCanvasEl,{copy:true,delay:500});
+    gif.on('finished', b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='edited.gif'; a.click(); });
+    gif.render();
 }
-function doResize(e){
-    if(!selected || !resizeHandle) return;
-    const rect=canvas.getBoundingClientRect(), mx=e.clientX-rect.left,my=e.clientY-rect.top;
-    let ox=selected.x, oy=selected.y, ow=selected.w, oh=selected.h;
-    if(resizeHandle==="se"){ selected.w=Math.max(20,mx-selected.x); selected.h=Math.max(20,my-selected.y);}
-    if(resizeHandle==="sw"){ selected.w=Math.max(20,(selected.x+selected.w)-mx); selected.x=selected.x+selected.w-selected.w; selected.h=Math.max(20,my-selected.y);}
-    if(resizeHandle==="ne"){ selected.w=Math.max(20,mx-selected.x); let nh=Math.max(20,(selected.y+selected.h)-my); selected.y=selected.y+selected.h-nh; selected.h=nh;}
-    if(resizeHandle==="nw"){ let nw=Math.max(20,(selected.x+selected.w)-mx); let nh=Math.max(20,(selected.y+selected.h)-my); selected.x=selected.x+selected.w-nw; selected.y=selected.y+selected.h-nh; selected.w=nw; selected.h=nh;}
-    draw();
-}
-function stopResize(){ resizeHandle=null; document.removeEventListener("mousemove",doResize); document.removeEventListener("mouseup",stopResize); }
-
-// text controls
-document.getElementById("textInput").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.text=e.target.value; saveHistory(); draw();}});
-document.getElementById("fontSize").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.size=parseInt(e.target.value); saveHistory(); draw();}});
-document.getElementById("fontColor").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.color=e.target.value; saveHistory(); draw();}});
-document.getElementById("strokeColor").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.stroke=e.target.value; saveHistory(); draw();}});
-document.getElementById("fontSelect").addEventListener("change", e=>{if(selected && selected.type==="text"){selected.font=e.target.value; saveHistory(); draw();}});
-document.getElementById("boldCheck").addEventListener("change", e=>{if(selected && selected.type==="text"){selected.bold=e.target.checked; saveHistory(); draw();}});
-document.getElementById("italicCheck").addEventListener("change", e=>{if(selected && selected.type==="text"){selected.italic=e.target.checked; saveHistory(); draw();}});
-document.getElementById("borderColor").addEventListener("input", e=>{if(selected){selected.border=e.target.value; saveHistory(); draw();}});
 </script>
 </body>
 </html>
