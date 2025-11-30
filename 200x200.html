@@ -1,168 +1,89 @@
 <!doctype html>
 <html lang="th">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Resize → GIF (200×200)</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image Editor – Resize, Move, Text, Sticker</title>
   <style>
-    body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;max-width:780px;margin:28px auto;padding:0 16px;color:#222}
-    .card{border:1px solid #e6e6e6;border-radius:10px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,0.04)}
-    label{display:block;margin-bottom:8px;font-weight:600}
-    input[type=file]{display:block}
-    .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
-    canvas{background:#fff;border:1px solid #ddd}
-    button{padding:10px 14px;border-radius:8px;border:0;background:#2563eb;color:#fff;cursor:pointer}
-    a.button{display:inline-block;padding:10px 14px;border-radius:8px;background:#059669;color:#fff;text-decoration:none}
-    .muted{color:#666;font-size:14px}
+    body { font-family: sans-serif; padding: 20px; background: #f3f3f3; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .panel { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    canvas { border: 1px solid #ccc; background: white; cursor: move; }
+    input[type=file] { padding: 5px; }
+    button { padding: 8px 12px; border: 0; background: #2563eb; color: white; border-radius: 6px; cursor: pointer; }
+    button.red { background:#dc2626 }
   </style>
 </head>
 <body>
-  <h1>ปรับขนาดภาพเป็น 200×200 และแปลงเป็น GIF</h1>
-  <div class="card">
-    <label>เลือกไฟล์ภาพ (jpg, png, webp, bmp, gif):</label>
-    <input id="fileInput" type="file" accept="image/*">
-    <div class="row" style="margin-top:8px;align-items:center">
-      <div>
-        <label>ตัวอย่าง (ปรับเป็น 200×200):</label>
-        <canvas id="canvas" width="200" height="200"></canvas>
-      </div>
-      <div style="flex:1;min-width:220px">
-        <p class="muted">หลังเลือกไฟล์ ระบบจะปรับขนาดภาพเป็น 200×200 พิกเซลโดยรักษาอัตราส่วน (จะครอป/ตำแหน่งศูนย์กลางถ้าจำเป็น) จากนั้นกดปุ่ม "แปลงเป็น GIF" เพื่อสร้างไฟล์ .gif และดาวน์โหลด</p>
-        <div style="margin-top:12px">
-          <button id="toGifBtn" disabled>แปลงเป็น GIF</button>
-          <a id="downloadLink" class="button" style="display:none;margin-left:8px">ดาวน์โหลด GIF</a>
-        </div>
-        <div style="margin-top:10px">
-          <label>ชื่อไฟล์ (ไม่ต้องใส่นามสกุล):</label>
-          <input id="filename" type="text" placeholder="output" value="output">
-        </div>
-      </div>
-    </div>
-    <p style="margin-top:12px" class="muted">หมายเหตุ: ตัวเว็บเพจนี้ใช้การประมวลผลทั้งหมดยังเบราว์เซอร์ของคุณ — ไฟล์จะไม่ถูกอัปโหลดไปยังเซิร์ฟเวอร์ภายนอก</p>
+  <h2>โปรแกรมแต่งรูป – ปรับขนาด, เลื่อนตำแหน่ง, ใส่สติ๊กเกอร์, พิมพ์ข้อความ</h2>
+
+  <div class="panel toolbar">
+    <input id="uploadImage" type="file" accept="image/*" />
+    <button id="addTextBtn">เพิ่มข้อความ</button>
+    <button id="addStickerBtn">เพิ่มภาพตัดปะ</button>
+    <button id="downloadBtn">ดาวน์โหลดภาพ</button>
   </div>
 
-  <!-- gif.js library (ใช้ CDN) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+  <div class="panel" style="padding:15px;">
+    <canvas id="editor" width="600" height="600"></canvas>
+  </div>
+
   <script>
-    const fileInput = document.getElementById('fileInput');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const toGifBtn = document.getElementById('toGifBtn');
-    const downloadLink = document.getElementById('downloadLink');
-    const filenameInput = document.getElementById('filename');
+    const canvas = document.getElementById("editor");
+    const ctx = canvas.getContext("2d");
 
-    // เคลียร์ canvas
-    function clearCanvas() {
+    let objects = []; // เก็บเลเยอร์ทั้งหมด (ภาพ, ข้อความ, สติ๊กเกอร์)
+    let selected = null;
+    let offsetX = 0, offsetY = 0;
+
+    function drawAll() {
       ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      for (let obj of objects) {
+        if (obj.type === "image" || obj.type === "sticker") {
+          ctx.drawImage(obj.img, obj.x, obj.y, obj.w, obj.h);
+        } else if (obj.type === "text") {
+          ctx.font = obj.size + "px sans-serif";
+          ctx.fillStyle = obj.color;
+          ctx.fillText(obj.text, obj.x, obj.y);
+        }
+      }
     }
-    clearCanvas();
 
-    // อ่านไฟล์ภาพแล้วแสดงตัวอย่างใน canvas (ปรับเป็น 200x200 โดย crop กลาง)
-    fileInput.addEventListener('change', async (e) => {
-      downloadLink.style.display = 'none';
-      toGifBtn.disabled = true;
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-
-      // ใช้ FileReader แทน URL.createObjectURL แก้ปัญหาภาพไม่ขึ้นบนบางเบราว์เซอร์
+    function loadImage(file) {
       const reader = new FileReader();
-      reader.onload = function(ev) {
+      reader.onload = function(e) {
         const img = new Image();
         img.onload = () => {
-          const targetW = canvas.width;
-          const targetH = canvas.height;
-          const sw = img.width;
-          const sh = img.height;
-
-          const scale = Math.max(targetW / sw, targetH / sh);
-          const drawW = sw * scale;
-          const drawH = sh * scale;
-          const dx = (targetW - drawW) / 2;
-          const dy = (targetH - drawH) / 2;
-
-          clearCanvas();
-          ctx.drawImage(img, dx, dy, drawW, drawH);
-          toGifBtn.disabled = false;
-        };
-        img.onerror = () => alert('โหลดภาพไม่สำเร็จ');
-        img.src = ev.target.result;
-      };
+          const scale = 400 / Math.max(img.width, img.height);
+          const w = img.width * scale;
+          const h = img.height * scale;
+          objects.push({type:"image", img, x:100, y:100, w, h});
+          drawAll();
+        }
+        img.src = e.target.result;
+      }
       reader.readAsDataURL(file);
-    });('change', async (e) => {
-      downloadLink.style.display = 'none';
-      toGifBtn.disabled = true;
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
+    }
+
+    document.getElementById("uploadImage").addEventListener("change", e => {
+      if (e.target.files[0]) loadImage(e.target.files[0]);
+    });
+
+    document.getElementById("addTextBtn").addEventListener("click", () => {
+      const text = prompt("พิมพ์ข้อความ:");
+      if (!text) return;
+      objects.push({type:"text", text, x:150, y:150, size:40, color:"#000"});
+      drawAll();
+    });
+
+    document.getElementById("addStickerBtn").addEventListener("click", () => {
+      const url = prompt("วางลิงก์ภาพสติ๊กเกอร์ (PNG):");
+      if (!url) return;
       const img = new Image();
       img.onload = () => {
-        // คำนวณ crop เพื่อให้ภาพเต็ม 200x200 โดยรักษา aspect ratio
-        const targetW = canvas.width;
-        const targetH = canvas.height;
-        const sw = img.width;
-        const sh = img.height;
-
-        // คำนวณ scale ให้เติมเต็ม (cover)
-        const scale = Math.max(targetW / sw, targetH / sh);
-        const drawW = sw * scale;
-        const drawH = sh * scale;
-        // ตำแหน่งเริ่มต้นเพื่อ crop กลาง
-        const dx = (targetW - drawW) / 2;
-        const dy = (targetH - drawH) / 2;
-
-        // วาดพื้นขาวก่อน (ป้องกันภาพใสหาย)
-        clearCanvas();
-        ctx.drawImage(img, dx, dy, drawW, drawH);
-        toGifBtn.disabled = false;
-        URL.revokeObjectURL(url);
-      };
-      img.onerror = () => {
-        alert('ไม่สามารถโหลดภาพได้');
-        URL.revokeObjectURL(url);
-      };
-      img.src = url;
-    });
-
-    // สร้าง GIF จาก canvas (1 เฟรม) แล้วให้ดาวน์โหลด
-    toGifBtn.addEventListener('click', () => {
-      toGifBtn.disabled = true;
-      downloadLink.style.display = 'none';
-      const outName = (filenameInput.value || 'output').replace(/[^a-zA-Z0-9-_]/g, '_') + '.gif';
-
-      // ตรวจสอบว่ามี gif.js
-      if (typeof GIF === 'undefined') {
-        alert('ไม่พบไลบรารี GIF (gif.js) — ต้องออนไลน์เพื่อโหลดจาก CDN');
-        toGifBtn.disabled = false;
-        return;
+        const w = img.width/2;
+        const h = img.height/2;
+        objects.push({type:"sticker", img, x:120, y:120, w, h});
+        drawAll();
       }
-
-      const gif = new GIF({
-        workers: 2,
-        quality: 10,
-        workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
-      });
-
-      // เพิ่มเฟรมจาก canvas (copy canvas เพื่อแน่ใจว่าได้ภาพที่ชัด)
-      // frame delay 500ms (ปรับได้)
-      gif.addFrame(canvas, {copy: true, delay: 500});
-
-      gif.on('finished', function(blob) {
-        const url = URL.createObjectURL(blob);
-        downloadLink.href = url;
-        downloadLink.download = outName;
-        downloadLink.style.display = 'inline-block';
-        downloadLink.textContent = 'ดาวน์โหลด ' + outName;
-        toGifBtn.disabled = false;
-      });
-
-      gif.on('progress', function(p) {
-        toGifBtn.textContent = 'กำลังสร้าง GIF ' + Math.round(p * 100) + '%';
-      });
-
-      gif.render();
-    });
-  </script>
-</body>
-</html>
+      img.crossOrigin = "anonymous";
