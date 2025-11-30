@@ -2,148 +2,161 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Simple Image Editor 2020</title>
+<title>Pro Image Editor 2025</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.6.0/fabric.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
 <style>
-body{margin:0;font-family:sans-serif;background:#f0f0f0;color:#333;}
-header{padding:10px;text-align:center;background:#333;color:white;}
-.container{display:flex;flex-wrap:wrap;gap:15px;padding:15px;max-width:1200px;margin:auto;}
-.canvas-panel{flex:1;background:#fff;padding:10px;border-radius:10px;box-shadow:0 0 10px rgba(0,0,0,0.2);}
-.sidebar{width:280px;background:#fff;padding:10px;border-radius:10px;box-shadow:0 0 10px rgba(0,0,0,0.2);}
-canvas{border:1px solid #ccc;max-width:100%;}
-button,input,select{margin:3px 0;padding:5px;border-radius:5px;border:1px solid #ccc;cursor:pointer;}
-input[type=color]{padding:0;width:50px;}
+body{margin:0;font-family:'Segoe UI',sans-serif;background:#181a1f;color:#eee;}
+header{padding:15px;text-align:center;background:#0d1117;color:white;}
+.container{display:flex;flex-direction:row;gap:15px;padding:15px;max-width:1400px;margin:auto;}
+.canvas-panel{flex:1; background:#1e1f25; padding:10px; border-radius:12px;}
+.sidebar{width:300px;background:#1c1d22;padding:15px;border-radius:12px;overflow-y:auto; max-height:90vh;}
+button,input,select{margin:2px;padding:6px 10px;border-radius:6px;border:none;background:#2563eb;color:white;cursor:pointer;}
+button:hover{background:#1e40af;}
+label{display:block;margin-top:10px;color:#aaa;font-size:13px;}
+canvas{border:1px solid #444; background:white; max-width:100%;}
 </style>
 </head>
 <body>
 
-<header><h2>Simple Image Editor 2020</h2></header>
+<header><h1>Pro Image Editor 2025</h1></header>
 <div class="container">
 
 <div class="canvas-panel">
-<canvas id="canvas" width="800" height="600"></canvas>
-<h4>Preview 200x200</h4>
-<canvas id="preview" width="200" height="200" style="border:1px solid #ccc;"></canvas>
+<canvas id="canvas" width="1000" height="600"></canvas>
+<h3>Preview 200x200</h3>
+<canvas id="previewCanvas" width="200" height="200"></canvas>
 </div>
 
 <div class="sidebar">
 <h3>Tools</h3>
-<input type="file" id="uploadImage" accept="image/*"><br>
-<input type="file" id="uploadSticker" accept="image/*"><br>
-<input type="text" id="imageURL" placeholder="นำเข้าจาก URL แล้ว Enter"><br>
+<input type="file" id="uploadImage" accept="image/*" title="Upload Image">
+<input type="file" id="uploadSticker" accept="image/*" title="Upload Sticker">
+<input type="text" id="imageURL" placeholder="นำเข้าจาก URL แล้ว Enter">
 <button onclick="addText()">เพิ่มข้อความ</button>
 <button onclick="deleteObject()">ลบวัตถุ</button>
 <button onclick="undo()">Undo</button>
 <button onclick="redo()">Redo</button>
-
 <hr>
 <h4>Text Settings</h4>
 <label>ข้อความ:</label><input type="text" id="textInput">
-<label>Font:</label><select id="fontSelect"><option>Arial</option><option>Verdana</option><option>Tahoma</option></select>
+<label>Font:</label>
+<select id="fontSelect"><option>Arial</option><option>Verdana</option><option>Tahoma</option><option>Georgia</option></select>
 <label>Size:</label><input type="number" id="fontSize" value="30">
 <label>Color:</label><input type="color" id="fontColor" value="#ff0000">
 <label>Stroke Color:</label><input type="color" id="strokeColor" value="#000000">
-
+<label>Bold:</label><input type="checkbox" id="boldCheck">
+<label>Italic:</label><input type="checkbox" id="italicCheck">
+<label>Opacity:</label><input type="range" id="opacityRange" min="0" max="1" step="0.05" value="1">
 <hr>
 <h4>Export</h4>
 <button onclick="downloadPNG()">PNG</button>
 <button onclick="downloadGIF()">GIF</button>
+<button onclick="downloadJPG()">JPG</button>
 </div>
 
 </div>
 
 <script>
 const canvas = new fabric.Canvas('canvas', { preserveObjectStacking:true, selection:true });
-const preview = document.getElementById('preview');
+const preview = document.getElementById('previewCanvas');
 const pctx = preview.getContext('2d');
 let history=[], redoStack=[];
 
-// Undo/Redo
-function saveHistory(){ history.push(JSON.stringify(canvas.toJSON())); if(history.length>50) history.shift(); redoStack=[]; }
+function saveHistory(){ history.push(JSON.stringify(canvas.toJSON())); if(history.length>100) history.shift(); redoStack=[]; }
 function undo(){ if(history.length>0){ redoStack.push(JSON.stringify(canvas.toJSON())); canvas.loadFromJSON(history.pop(), canvas.renderAll.bind(canvas)); }}
 function redo(){ if(redoStack.length>0){ history.push(JSON.stringify(canvas.toJSON())); canvas.loadFromJSON(redoStack.pop(), canvas.renderAll.bind(canvas)); }}
 
-// Canvas events
 canvas.on('object:added', saveHistory);
 canvas.on('object:modified', saveHistory);
-canvas.on('after:render', drawPreview);
 
-// Preview
-function drawPreview(){
-    pctx.clearRect(0,0,200,200);
-    pctx.drawImage(canvas.lowerCanvasEl,0,0,200,200);
-}
-
-// Add Image
+// **ฟังก์ชันเพิ่มภาพ (รองรับ Upload/Sticker/URL)**
 function addImageFromURL(url,left=50,top=50){
-    const img = new Image();
-    img.crossOrigin='anonymous';
-    img.onload = ()=>{
-        const fImg = new fabric.Image(img, { left:left, top:top, selectable:true });
-        canvas.add(fImg); saveHistory();
-    }
-    img.onerror = ()=>alert("โหลดภาพไม่ได้");
-    img.src = url;
+    fabric.Image.fromURL(url, function(img){
+        img.set({ left:left, top:top, selectable:true });
+        // ปรับขนาดตามต้นฉบับ
+        img.scaleToWidth(img.width);
+        img.scaleToHeight(img.height);
+        canvas.add(img);
+        canvas.renderAll();
+        saveHistory();
+    }, {crossOrigin: 'anonymous'});
 }
 
-// Upload
+// Upload Image
 document.getElementById('uploadImage').addEventListener('change', e=>{
-    const f = e.target.files[0]; if(!f)return;
-    const reader = new FileReader();
-    reader.onload = ev=> addImageFromURL(ev.target.result);
-    reader.readAsDataURL(f);
-});
-document.getElementById('uploadSticker').addEventListener('change', e=>{
-    const f = e.target.files[0]; if(!f)return;
-    const reader = new FileReader();
-    reader.onload = ev=> addImageFromURL(ev.target.result,100,100);
+    const f=e.target.files[0]; if(!f)return;
+    const reader=new FileReader(); 
+    reader.onload=function(ev){ addImageFromURL(ev.target.result); };
     reader.readAsDataURL(f);
 });
 
-// URL
+// Upload Sticker
+document.getElementById('uploadSticker').addEventListener('change', e=>{
+    const f=e.target.files[0]; if(!f)return;
+    const reader=new FileReader(); 
+    reader.onload=function(ev){ addImageFromURL(ev.target.result,100,100); };
+    reader.readAsDataURL(f);
+});
+
+// URL Input
 document.getElementById('imageURL').addEventListener('keydown', e=>{
-    if(e.key==="Enter"){ const url=e.target.value.trim(); if(url){ addImageFromURL(url); e.target.value=''; } }
+    if(e.key==="Enter"){ 
+        const url=e.target.value.trim(); 
+        if(!url)return;
+        addImageFromURL(url); e.target.value=''; 
+    }
 });
 
 // Text
 function addText(){
-    const t = prompt("ข้อความ:"); if(!t)return;
-    const text = new fabric.Textbox(t,{ left:50, top:50, fontSize:30, fill:'#ff0000', stroke:'#000', strokeWidth:1, fontFamily:'Arial' });
+    const t=prompt("ข้อความ:"); if(!t)return;
+    const text=new fabric.Textbox(t,{
+        left:50, top:50, fontSize:30, fill:'#f00', stroke:'#000', strokeWidth:1, fontFamily:'Arial', opacity:1
+    });
     canvas.add(text);
 }
 
-// Delete
-function deleteObject(){ const active = canvas.getActiveObject(); if(active){ canvas.remove(active); saveHistory(); }}
+// Delete object
+function deleteObject(){ const active=canvas.getActiveObject(); if(active){ canvas.remove(active); saveHistory(); }}
 
 // Text settings
-function updateTextProps(){
-    const obj = canvas.getActiveObject();
-    if(obj && obj.type==='textbox'){
+const updateTextProps = ()=>{
+    const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){
         obj.text = document.getElementById('textInput').value;
         obj.fontFamily = document.getElementById('fontSelect').value;
         obj.fontSize = parseInt(document.getElementById('fontSize').value);
         obj.fill = document.getElementById('fontColor').value;
         obj.stroke = document.getElementById('strokeColor').value;
+        obj.fontWeight = document.getElementById('boldCheck').checked?'bold':'normal';
+        obj.fontStyle = document.getElementById('italicCheck').checked?'italic':'normal';
+        obj.opacity = parseFloat(document.getElementById('opacityRange').value);
         canvas.renderAll();
     }
-}
+};
 document.getElementById('textInput').addEventListener('input', updateTextProps);
 document.getElementById('fontSelect').addEventListener('change', updateTextProps);
 document.getElementById('fontSize').addEventListener('input', updateTextProps);
 document.getElementById('fontColor').addEventListener('input', updateTextProps);
 document.getElementById('strokeColor').addEventListener('input', updateTextProps);
+document.getElementById('boldCheck').addEventListener('change', updateTextProps);
+document.getElementById('italicCheck').addEventListener('change', updateTextProps);
+document.getElementById('opacityRange').addEventListener('input', updateTextProps);
+
+// Preview
+function drawPreview(){ pctx.clearRect(0,0,200,200); pctx.drawImage(canvas.lowerCanvasEl,0,0,200,200); }
+canvas.on('after:render', drawPreview);
 
 // Export
 function downloadPNG(){ const a=document.createElement('a'); a.href=canvas.toDataURL({format:'png'}); a.download='edited.png'; a.click(); }
+function downloadJPG(){ const a=document.createElement('a'); a.href=canvas.toDataURL({format:'jpeg', quality:0.95}); a.download='edited.jpg'; a.click(); }
 function downloadGIF(){
-    const gif = new GIF({workers:2,quality:10});
+    const gif=new GIF({workers:2,quality:10});
     gif.addFrame(canvas.lowerCanvasEl,{copy:true,delay:500});
     gif.on('finished', b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='edited.gif'; a.click(); });
     gif.render();
 }
-
 </script>
 </body>
 </html>
