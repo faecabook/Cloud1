@@ -127,4 +127,29 @@ function deleteObject(){ const active=canvas.getActiveObject(); if(active){ canv
 document.getElementById('textInput').addEventListener('input', e=>{
     const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.text = e.target.value; canvas.renderAll(); saveHistory(); }
 });
-document.getElementById('fontSize').addEventL
+document.getElementById('fontSize').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fontSize=parseInt(e.target.value); canvas.renderAll(); saveHistory(); }});
+document.getElementById('fontColor').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fill=e.target.value; canvas.renderAll(); saveHistory(); }});
+document.getElementById('strokeColor').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.stroke=e.target.value; canvas.renderAll(); saveHistory(); }});
+document.getElementById('fontSelect').addEventListener('change', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fontFamily=e.target.value; canvas.renderAll(); saveHistory(); }});
+document.getElementById('boldCheck').addEventListener('change', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fontWeight=e.target.checked?'bold':'normal'; canvas.renderAll(); saveHistory(); }});
+document.getElementById('italicCheck').addEventListener('change', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fontStyle=e.target.checked?'italic':'normal'; canvas.renderAll(); saveHistory(); }});
+document.getElementById('borderColor').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj){ obj.stroke=e.target.value; canvas.renderAll(); saveHistory(); }});
+document.getElementById('opacityRange').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj){ obj.opacity=parseFloat(e.target.value); canvas.renderAll(); saveHistory(); }});
+
+function drawPreview(){
+    pctx.clearRect(0,0,200,200);
+    pctx.drawImage(canvas.lowerCanvasEl,0,0,200,200);
+}
+canvas.on('after:render', drawPreview);
+
+function downloadPNG(){ const dataURL = canvas.toDataURL({format:'png'}); const a=document.createElement('a'); a.href=dataURL; a.download='edited.png'; a.click(); }
+
+function downloadGIF(){
+    const gif=new GIF({workers:2,quality:10});
+    gif.addFrame(canvas.lowerCanvasEl,{copy:true,delay:500});
+    gif.on('finished', b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='edited.gif'; a.click(); });
+    gif.render();
+}
+</script>
+</body>
+</html>
