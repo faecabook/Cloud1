@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Image Editor + Multi Images + 200x200 Preview</title>
+<title>Image Editor + Resize + 200x200 Preview</title>
 <style>
     body {
         font-family: sans-serif;
@@ -16,6 +16,13 @@
     canvas {
         background: #f0f0f0;
         cursor: pointer;
+    }
+    .handle {
+        width: 10px;
+        height: 10px;
+        background: #fff;
+        border: 2px solid #000;
+        position: absolute;
     }
     #previewBox {
         border: 2px solid #000;
@@ -57,123 +64,166 @@
 <script>
 let canvas = document.getElementById("mainCanvas");
 let ctx = canvas.getContext("2d");
-
 let previewCanvas = document.getElementById("previewCanvas");
 let pctx = previewCanvas.getContext("2d");
 
-let objects = []; // เก็บทุก layer: background, decoration, text
+let objects = []; // all layers
 let selected = null;
-let dragOffsetX = 0;
-let dragOffsetY = 0;
+let dragOffsetX=0, dragOffsetY=0;
+let resizing=false;
+let resizeHandle=null;
 
 // โหลด background
-document.getElementById("uploadBackground").addEventListener("change", function (e) {
-    let file = e.target.files[0];
-    if (!file) return;
-    let reader = new FileReader();
-    reader.onload = function (evt) {
-        let img = new Image();
-        img.onload = function () {
-            objects[0] = { type: "image", img: img, x:0, y:0, w: canvas.width, h: canvas.height };
+document.getElementById("uploadBackground").addEventListener("change", e=>{
+    let file=e.target.files[0];
+    if(!file) return;
+    let reader=new FileReader();
+    reader.onload=function(evt){
+        let img=new Image();
+        img.onload=function(){
+            objects[0]={type:"image", img:img, x:0,y:0,w:canvas.width,h:canvas.height};
             draw();
         };
-        img.src = evt.target.result;
+        img.src=evt.target.result;
     };
     reader.readAsDataURL(file);
 });
 
 // โหลด decoration
-document.getElementById("uploadDecoration").addEventListener("change", function (e) {
-    let file = e.target.files[0];
-    if (!file) return;
-    let reader = new FileReader();
-    reader.onload = function (evt) {
-        let img = new Image();
-        img.onload = function () {
-            objects.push({ type:"image", img: img, x:50, y:50, w:100, h:100 });
+document.getElementById("uploadDecoration").addEventListener("change", e=>{
+    let file=e.target.files[0];
+    if(!file) return;
+    let reader=new FileReader();
+    reader.onload=function(evt){
+        let img=new Image();
+        img.onload=function(){
+            objects.push({type:"image", img:img, x:50, y:50, w:100, h:100});
             draw();
         };
-        img.src = evt.target.result;
+        img.src=evt.target.result;
     };
     reader.readAsDataURL(file);
 });
 
-// วาดทุก layer
-function draw() {
+// เพิ่มข้อความ
+function addText(){
+    let text=prompt("พิมพ์ข้อความ:");
+    if(!text) return;
+    objects.push({type:"text", text:text, x:50, y:50, size:30, color:"red"});
+    draw();
+}
+
+// วาด layer + preview
+function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    for (let obj of objects) {
-        if (obj.type === "image") ctx.drawImage(obj.img, obj.x, obj.y, obj.w, obj.h);
-        else if (obj.type === "text") {
-            ctx.font = obj.size + "px Arial";
-            ctx.fillStyle = obj.color;
-            ctx.fillText(obj.text, obj.x, obj.y);
+    for(let obj of objects){
+        if(obj.type==="image") ctx.drawImage(obj.img,obj.x,obj.y,obj.w,obj.h);
+        else if(obj.type==="text"){
+            ctx.font=obj.size+"px Arial";
+            ctx.fillStyle=obj.color;
+            ctx.fillText(obj.text,obj.x,obj.y);
         }
     }
+    drawHandles();
     updatePreview();
 }
 
 // พรีวิว 200x200
-function updatePreview() {
+function updatePreview(){
     pctx.clearRect(0,0,200,200);
-    pctx.drawImage(canvas, 0,0,200,200);
-}
-
-// เพิ่มข้อความ
-function addText() {
-    let text = prompt("พิมพ์ข้อความ:");
-    if (!text) return;
-    objects.push({ type:"text", text:text, x:50, y:50, size:30, color:"red" });
-    draw();
+    pctx.drawImage(canvas,0,0,200,200);
 }
 
 // ดาวน์โหลด PNG
-function downloadImage() {
-    let link = document.createElement("a");
-    link.download = "edited.png";
-    link.href = canvas.toDataURL();
+function downloadImage(){
+    let link=document.createElement("a");
+    link.download="edited.png";
+    link.href=canvas.toDataURL();
     link.click();
 }
 
-// เลือกและลาก
+// เลือกวัตถุ
 canvas.addEventListener("mousedown", e=>{
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    for (let i = objects.length-1; i>=0; i--) {
-        let o = objects[i];
-        if (o.type==="image" && mx>=o.x && mx<=o.x+o.w && my>=o.y && my<=o.y+o.h) {
-            selected = o;
-            dragOffsetX = mx - o.x;
-            dragOffsetY = my - o.y;
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left;
+    const my=e.clientY-rect.top;
+    for(let i=objects.length-1;i>=0;i--){
+        let o=objects[i];
+        if(o.type==="image" && mx>=o.x && mx<=o.x+o.w && my>=o.y && my<=o.y+o.h){
+            selected=o;
+            dragOffsetX=mx-o.x;
+            dragOffsetY=my-o.y;
+            // check if near resize handle (bottom-right corner)
+            if(Math.abs(mx-(o.x+o.w))<10 && Math.abs(my-(o.y+o.h))<10){
+                resizing=true;
+            }
             return;
-        } else if (o.type==="text") {
-            ctx.font = o.size + "px Arial";
-            const w = ctx.measureText(o.text).width;
-            const h = o.size;
-            if (mx>=o.x && mx<=o.x+w && my<=o.y && my>=o.y-h) {
+        }
+        else if(o.type==="text"){
+            ctx.font=o.size+"px Arial";
+            const w=ctx.measureText(o.text).width;
+            const h=o.size;
+            if(mx>=o.x && mx<=o.x+w && my<=o.y && my>=o.y-h){
                 selected=o;
-                dragOffsetX = mx - o.x;
-                dragOffsetY = my - o.y;
+                dragOffsetX=mx-o.x;
+                dragOffsetY=my-o.y;
+                // resize for text: just change size if near corner
+                if(Math.abs(mx-(o.x+w))<10 && Math.abs(my-(o.y))<10){
+                    resizing=true;
+                }
                 return;
             }
         }
     }
     selected=null;
-});
-
-canvas.addEventListener("mousemove", e=>{
-    if (!selected) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    selected.x = mx - dragOffsetX;
-    selected.y = my - dragOffsetY;
     draw();
 });
 
-canvas.addEventListener("mouseup", e=>{ selected=null; });
-canvas.addEventListener("mouseleave", e=>{ selected=null; });
+canvas.addEventListener("mousemove", e=>{
+    if(!selected) return;
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left;
+    const my=e.clientY-rect.top;
+    if(resizing){
+        if(selected.type==="image"){
+            selected.w=Math.max(10,mx-selected.x);
+            selected.h=Math.max(10,my-selected.y);
+        }else if(selected.type==="text"){
+            selected.size=Math.max(10,my-selected.y);
+        }
+    }else{
+        selected.x=mx-dragOffsetX;
+        selected.y=my-dragOffsetY;
+    }
+    draw();
+});
 
+canvas.addEventListener("mouseup", e=>{
+    selected=null; resizing=false;
+});
+
+canvas.addEventListener("mouseleave", e=>{
+    selected=null; resizing=false;
+});
+
+// วาด handle มุมขวาล่าง
+function drawHandles(){
+    if(!selected) return;
+    ctx.save();
+    ctx.strokeStyle="blue";
+    ctx.lineWidth=2;
+    if(selected.type==="image"){
+        ctx.strokeRect(selected.x,selected.y,selected.w,selected.h);
+        ctx.fillStyle="blue";
+        ctx.fillRect(selected.x+selected.w-5,selected.y+selected.h-5,10,10);
+    }else if(selected.type==="text"){
+        ctx.strokeRect(selected.x,selected.y-selected.size,ctx.measureText(selected.text).width,selected.size);
+        ctx.fillStyle="blue";
+        ctx.fillRect(selected.x+ctx.measureText(selected.text).width-5,selected.y-5,10,10);
+    }
+    ctx.restore();
+}
 </script>
+
 </body>
 </html>
