@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Pro Image Editor 2025 - Photoshop Online</title>
+<title>Pro Image Editor 2025</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
@@ -15,7 +15,7 @@ header{padding:15px;text-align:center;background:#0d1117;color:white;}
 button,input,select{margin:2px;padding:6px 10px;border-radius:6px;border:none;background:#2563eb;color:white;cursor:pointer;}
 button:hover{background:#1e40af;}
 label{display:block;margin-top:10px;color:#aaa;font-size:13px;}
-canvas{border:1px solid #444; background:white;}
+canvas{border:1px solid #444; background:white; max-width:100%;}
 </style>
 </head>
 <body>
@@ -71,53 +71,81 @@ function redo(){ if(redoStack.length>0){ history.push(JSON.stringify(canvas.toJS
 canvas.on('object:added', saveHistory);
 canvas.on('object:modified', saveHistory);
 
-function fitImage(img){ img.set({left:50, top:50, selectable:true, hasControls:true}); }
+// **ฟังก์ชันเพิ่มภาพ**
+function addImageFromURL(url,left=50,top=50){
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = ()=>{ 
+        const fImg = new fabric.Image(img, { left:left, top:top, selectable:true, hasControls:true }); 
+        canvas.add(fImg); saveHistory(); 
+    };
+    img.onerror = ()=>alert('โหลดภาพจาก URL ไม่ได้');
+    img.src = url;
+}
 
+// Upload Image
 document.getElementById('uploadImage').addEventListener('change', e=>{
     const f=e.target.files[0]; if(!f)return;
-    const reader=new FileReader(); reader.onload=function(ev){
-        fabric.Image.fromURL(ev.target.result, img=>{ fitImage(img); canvas.add(img); }, {crossOrigin:'anonymous'});
-    }; reader.readAsDataURL(f);
+    const reader=new FileReader(); 
+    reader.onload=function(ev){ addImageFromURL(ev.target.result); };
+    reader.readAsDataURL(f);
 });
 
+// Upload Sticker
 document.getElementById('uploadSticker').addEventListener('change', e=>{
     const f=e.target.files[0]; if(!f)return;
-    const reader=new FileReader(); reader.onload=function(ev){
-        fabric.Image.fromURL(ev.target.result, img=>{
-            img.set({left:100, top:100, selectable:true, hasControls:true});
-            canvas.add(img);
-        }, {crossOrigin:'anonymous'});
-    }; reader.readAsDataURL(f);
+    const reader=new FileReader(); 
+    reader.onload=function(ev){ addImageFromURL(ev.target.result,100,100); };
+    reader.readAsDataURL(f);
 });
 
+// URL Input
 document.getElementById('imageURL').addEventListener('keydown', e=>{
-    if(e.key==="Enter"){ const url=e.target.value.trim(); if(!url)return;
-        fabric.Image.fromURL(url,img=>{ fitImage(img); canvas.add(img); e.target.value=''; }, {crossOrigin:'anonymous'});
+    if(e.key==="Enter"){ 
+        const url=e.target.value.trim(); 
+        if(!url)return;
+        addImageFromURL(url); e.target.value=''; 
     }
 });
 
+// Text
 function addText(){
     const t=prompt("ข้อความ:"); if(!t)return;
     const text=new fabric.Textbox(t,{left:50,top:50,fontSize:30,fill:'#f00',stroke:'#000',strokeWidth:1,fontFamily:'Arial',opacity:1});
     canvas.add(text);
 }
 
-function deleteObject(){ const active=canvas.getActiveObject(); if(active){ canvas.remove(active); }}
+// Delete object
+function deleteObject(){ const active=canvas.getActiveObject(); if(active){ canvas.remove(active); saveHistory(); }}
 
-document.getElementById('textInput').addEventListener('input', e=>{
-    const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.text=e.target.value; canvas.renderAll(); }
-});
-document.getElementById('fontSize').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fontSize=parseInt(e.target.value); canvas.renderAll(); }});
-document.getElementById('fontColor').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fill=e.target.value; canvas.renderAll(); }});
-document.getElementById('strokeColor').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.stroke=e.target.value; canvas.renderAll(); }});
-document.getElementById('fontSelect').addEventListener('change', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fontFamily=e.target.value; canvas.renderAll(); }});
-document.getElementById('boldCheck').addEventListener('change', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fontWeight=e.target.checked?'bold':'normal'; canvas.renderAll(); }});
-document.getElementById('italicCheck').addEventListener('change', e=>{ const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){ obj.fontStyle=e.target.checked?'italic':'normal'; canvas.renderAll(); }});
-document.getElementById('opacityRange').addEventListener('input', e=>{ const obj = canvas.getActiveObject(); if(obj){ obj.opacity=parseFloat(e.target.value); canvas.renderAll(); }});
+// Text settings
+const updateTextProps = ()=>{
+    const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){
+        obj.text = document.getElementById('textInput').value;
+        obj.fontFamily = document.getElementById('fontSelect').value;
+        obj.fontSize = parseInt(document.getElementById('fontSize').value);
+        obj.fill = document.getElementById('fontColor').value;
+        obj.stroke = document.getElementById('strokeColor').value;
+        obj.fontWeight = document.getElementById('boldCheck').checked?'bold':'normal';
+        obj.fontStyle = document.getElementById('italicCheck').checked?'italic':'normal';
+        obj.opacity = parseFloat(document.getElementById('opacityRange').value);
+        canvas.renderAll();
+    }
+};
+document.getElementById('textInput').addEventListener('input', updateTextProps);
+document.getElementById('fontSelect').addEventListener('change', updateTextProps);
+document.getElementById('fontSize').addEventListener('input', updateTextProps);
+document.getElementById('fontColor').addEventListener('input', updateTextProps);
+document.getElementById('strokeColor').addEventListener('input', updateTextProps);
+document.getElementById('boldCheck').addEventListener('change', updateTextProps);
+document.getElementById('italicCheck').addEventListener('change', updateTextProps);
+document.getElementById('opacityRange').addEventListener('input', updateTextProps);
 
+// Preview
 function drawPreview(){ pctx.clearRect(0,0,200,200); pctx.drawImage(canvas.lowerCanvasEl,0,0,200,200); }
 canvas.on('after:render', drawPreview);
 
+// Export
 function downloadPNG(){ const a=document.createElement('a'); a.href=canvas.toDataURL({format:'png'}); a.download='edited.png'; a.click(); }
 function downloadJPG(){ const a=document.createElement('a'); a.href=canvas.toDataURL({format:'jpeg', quality:0.95}); a.download='edited.jpg'; a.click(); }
 function downloadGIF(){
