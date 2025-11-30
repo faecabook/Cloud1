@@ -14,6 +14,7 @@ button{background:#2563eb;color:white;border:none;padding:6px 12px;border-radius
 button:hover{background:#1e40af;}
 .input-group{margin:5px 0;}
 label{margin-right:4px;}
+.handle{position:absolute;width:10px;height:10px;background:#fff;border:2px solid #2563eb;box-sizing:border-box;}
 </style>
 </head>
 <body>
@@ -46,9 +47,12 @@ label{margin-right:4px;}
 <label>Stroke:</label><input type="color" id="strokeColor" value="#000000">
 <label>Bold:</label><input type="checkbox" id="boldCheck">
 <label>Italic:</label><input type="checkbox" id="italicCheck">
+<label>Border Color:</label><input type="color" id="borderColor" value="#0000ff">
 </div>
 
+<div id="canvasWrap" style="position:relative;">
 <canvas id="mainCanvas" width="800" height="600"></canvas>
+</div>
 </div>
 
 <div class="card">
@@ -61,13 +65,14 @@ label{margin-right:4px;}
 <script>
 const canvas=document.getElementById("mainCanvas"), ctx=canvas.getContext("2d");
 const previewCanvas=document.getElementById("previewCanvas"), pctx=previewCanvas.getContext("2d");
+const wrap=document.getElementById("canvasWrap");
 let objects=[], selected=null;
-let dragOffsetX=0, dragOffsetY=0, resizing=false, resizeCorner=null;
+let drag=false, resizeHandle=null, dragOffsetX=0, dragOffsetY=0;
 let history=[], redoStack=[];
 
 function saveHistory(){ history.push(JSON.stringify(objects)); if(history.length>50) history.shift(); redoStack=[]; }
-function undo(){ if(history.length>0){ redoStack.push(JSON.stringify(objects)); objects=JSON.parse(history.pop()); draw(); }}
-function redo(){ if(redoStack.length>0){ history.push(JSON.stringify(objects)); objects=JSON.parse(redoStack.pop()); draw(); }}
+function undo(){ if(history.length>0){ redoStack.push(JSON.stringify(objects)); objects=JSON.parse(history.pop()); draw();}}
+function redo(){ if(redoStack.length>0){ history.push(JSON.stringify(objects)); objects=JSON.parse(redoStack.pop()); draw();}}
 
 function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -76,77 +81,110 @@ function draw(){
         ctx.translate(o.x+o.w/2,o.y+o.h/2);
         ctx.rotate((o.angle||0)*Math.PI/180);
         ctx.translate(-(o.x+o.w/2),-(o.y+o.h/2));
-        if(o.type==="image") ctx.drawImage(o.img,o.x,o.y,o.w,o.h);
-        else if(o.type==="text"){
-            let fontStyle=(o.bold?"bold ":"")+(o.italic?"italic ":"")+o.size+"px "+(o.font||"Arial");
-            ctx.font=fontStyle;
-            ctx.fillStyle=o.color;
-            ctx.fillText(o.text,o.x,o.y+o.size);
-            if(o.stroke){ ctx.strokeStyle=o.stroke; ctx.lineWidth=o.strokeWidth||2; ctx.strokeText(o.text,o.x,o.y+o.size);}
+        if(o.type==="image"){
+            ctx.drawImage(o.img,o.x,o.y,o.w,o.h);
+            if(o.border){ctx.strokeStyle=o.border; ctx.lineWidth=3; ctx.strokeRect(o.x,o.y,o.w,o.h);}
         }
-        if(o.border){ ctx.strokeStyle=o.border; ctx.lineWidth=3; ctx.strokeRect(o.x,o.y,o.w,o.h);}
+        else if(o.type==="text"){
+            let fstyle=(o.bold?"bold ":"")+(o.italic?"italic ":"")+o.size+"px "+o.font;
+            ctx.font=fstyle; ctx.fillStyle=o.color;
+            ctx.fillText(o.text,o.x,o.y+o.size);
+            if(o.stroke){ctx.strokeStyle=o.stroke;ctx.lineWidth=2;ctx.strokeText(o.text,o.x,o.y+o.size);}
+            if(o.border){ctx.strokeStyle=o.border;ctx.lineWidth=2;ctx.strokeRect(o.x,o.y,o.w,o.h);}
+        }
         ctx.restore();
     }
     drawHandles();
     updatePreview();
 }
 
-function updatePreview(){ pctx.clearRect(0,0,200,200); pctx.drawImage(canvas,0,0,200,200);}
-function downloadPNG(){ let a=document.createElement("a"); a.href=canvas.toDataURL(); a.download="edited.png"; a.click();}
-function downloadGIF(){ let gif=new GIF({workers:2,quality:10}); gif.addFrame(canvas,{copy:true,delay:200}); gif.on('finished',b=>{let a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="edited.gif"; a.click();}); gif.render();}
+function drawHandles(){
+    // remove old
+    document.querySelectorAll(".handle").forEach(h=>h.remove());
+    if(!selected) return;
+    let corners=[ ["nw",selected.x,selected.y],["ne",selected.x+selected.w,selected.y],
+                  ["sw",selected.x,selected.y+selected.h],["se",selected.x+selected.w,selected.y+selected.h] ];
+    for(let c of corners){
+        let div=document.createElement("div");
+        div.className="handle";
+        div.dataset.pos=c[0];
+        div.style.left=c[1]-6+"px";
+        div.style.top=c[2]-6+"px";
+        wrap.appendChild(div);
+        div.addEventListener("mousedown", startResize);
+    }
+}
+
+function updatePreview(){ pctx.clearRect(0,0,200,200); pctx.drawImage(canvas,0,0,200,200); }
+
+function downloadPNG(){ let a=document.createElement("a"); a.href=canvas.toDataURL(); a.download="edited.png"; a.click(); }
+function downloadGIF(){ let gif=new GIF({workers:2,quality:10}); gif.addFrame(canvas,{copy:true,delay:200}); gif.on('finished',b=>{let a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="edited.gif";a.click();}); gif.render();}
 
 document.getElementById("uploadImage").addEventListener("change", e=>{
     let f=e.target.files[0]; if(!f)return;
     let r=new FileReader(); r.onload=function(ev){
-        let img=new Image(); img.onload=function(){
-            objects.push({type:"image",img:img,x:50,y:50,w:200,h:200,angle:0,border:null}); saveHistory(); draw();
-        }; img.src=ev.target.result;
+        let img=new Image(); img.onload=function(){ objects.push({type:"image",img:img,x:50,y:50,w:200,h:200,angle:0,border:null}); saveHistory(); draw();}; img.src=ev.target.result;
     }; r.readAsDataURL(f);
 });
 document.getElementById("uploadSticker").addEventListener("change", e=>{
     let f=e.target.files[0]; if(!f)return;
     let r=new FileReader(); r.onload=function(ev){
-        let img=new Image(); img.onload=function(){
-            objects.push({type:"image",img:img,x:100,y:100,w:100,h:100,angle:0,border:"#00f"}); saveHistory(); draw();
-        }; img.src=ev.target.result;
+        let img=new Image(); img.onload=function(){ objects.push({type:"image",img:img,x:100,y:100,w:100,h:100,angle:0,border:"#00f"}); saveHistory(); draw();}; img.src=ev.target.result;
     }; r.readAsDataURL(f);
 });
 document.getElementById("imageURL").addEventListener("keydown", e=>{
-    if(e.key==="Enter"){let url=e.target.value.trim(); if(!url)return;
+    if(e.key==="Enter"){ let url=e.target.value.trim(); if(!url)return;
         let img=new Image(); img.crossOrigin="anonymous";
         img.onload=function(){ objects.push({type:"image",img:img,x:50,y:50,w:150,h:150,border:"#00f"}); saveHistory(); draw();};
         img.onerror=()=>alert("โหลดภาพไม่สำเร็จ"); img.src=url; e.target.value="";
     }
 });
 
-function addText(){ let t=prompt("ข้อความ:"); if(!t)return; 
-objects.push({type:"text",text:t,x:50,y:50,size:30,color:"#f00",stroke:"#000",strokeWidth:2,bold:false,italic:false,font:"Arial",angle:0,w:ctx.measureText(t).width,h:30}); saveHistory(); draw();}
-
+function addText(){ let t=prompt("ข้อความ:"); if(!t)return;
+objects.push({type:"text",text:t,x:50,y:50,size:30,color:"#f00",stroke:"#000",strokeWidth:2,bold:false,italic:false,font:"Arial",angle:0,w:ctx.measureText(t).width,h:30,border:null}); saveHistory(); draw(); }
 function deleteObject(){ if(selected){ objects=objects.filter(o=>o!==selected); selected=null; saveHistory(); draw(); }}
 
-// Drag & Resize
+// select
 canvas.addEventListener("mousedown", e=>{
     const rect=canvas.getBoundingClientRect(), mx=e.clientX-rect.left,my=e.clientY-rect.top;
-    selected=null; resizing=false; resizeCorner=null;
+    drag=false; selected=null; resizeHandle=null;
     for(let i=objects.length-1;i>=0;i--){
         let o=objects[i];
-        // check inside
-        if(o.type==="text"){
-            let w=ctx.measureText(o.text).width, h=o.size;
-            if(mx>=o.x && mx<=o.x+w && my>=o.y && my<=o.y+h){ selected=o; dragOffsetX=mx-o.x; dragOffsetY=my-o.y; return;}
-        } else if(mx>=o.x && mx<=o.x+o.w && my>=o.y && my<=o.y+o.h){ selected=o; dragOffsetX=mx-o.x; dragOffsetY=my-o.y; return;}
+        if(o.type==="text"){ let w=ctx.measureText(o.text).width, h=o.size; if(mx>=o.x && mx<=o.x+w && my>=o.y && my<=o.y+h){ selected=o; drag=true; dragOffsetX=mx-o.x; dragOffsetY=my-o.y; draw(); return;} }
+        else{ if(mx>=o.x && mx<=o.x+o.w && my>=o.y && my<=o.y+o.h){ selected=o; drag=true; dragOffsetX=mx-o.x; dragOffsetY=my-o.y; draw(); return; } }
     }
     draw();
 });
 canvas.addEventListener("mousemove", e=>{
-    if(!selected) return;
+    if(!drag || !selected) return;
     const rect=canvas.getBoundingClientRect(), mx=e.clientX-rect.left,my=e.clientY-rect.top;
     selected.x=mx-dragOffsetX; selected.y=my-dragOffsetY;
     draw();
 });
-canvas.addEventListener("mouseup", e=>{selected=null;});
-canvas.addEventListener("mouseleave", e=>{selected=null;});
+canvas.addEventListener("mouseup", e=>{ drag=false; resizeHandle=null; });
 
+// resize
+function startResize(e){
+    resizeHandle=e.target.dataset.pos; selected=objects.find(o=>{
+        let corners=[ ["nw",o.x,o.y],["ne",o.x+o.w,o.y],["sw",o.x,o.y+o.h],["se",o.x+o.w,o.y+o.h] ];
+        return corners.some(c=>c[0]===resizeHandle);
+    });
+    document.addEventListener("mousemove", doResize);
+    document.addEventListener("mouseup", stopResize);
+}
+function doResize(e){
+    if(!selected || !resizeHandle) return;
+    const rect=canvas.getBoundingClientRect(), mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    let ox=selected.x, oy=selected.y, ow=selected.w, oh=selected.h;
+    if(resizeHandle==="se"){ selected.w=Math.max(20,mx-selected.x); selected.h=Math.max(20,my-selected.y);}
+    if(resizeHandle==="sw"){ selected.w=Math.max(20,(selected.x+selected.w)-mx); selected.x=selected.x+selected.w-selected.w; selected.h=Math.max(20,my-selected.y);}
+    if(resizeHandle==="ne"){ selected.w=Math.max(20,mx-selected.x); let nh=Math.max(20,(selected.y+selected.h)-my); selected.y=selected.y+selected.h-nh; selected.h=nh;}
+    if(resizeHandle==="nw"){ let nw=Math.max(20,(selected.x+selected.w)-mx); let nh=Math.max(20,(selected.y+selected.h)-my); selected.x=selected.x+selected.w-nw; selected.y=selected.y+selected.h-nh; selected.w=nw; selected.h=nh;}
+    draw();
+}
+function stopResize(){ resizeHandle=null; document.removeEventListener("mousemove",doResize); document.removeEventListener("mouseup",stopResize); }
+
+// text controls
 document.getElementById("textInput").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.text=e.target.value; saveHistory(); draw();}});
 document.getElementById("fontSize").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.size=parseInt(e.target.value); saveHistory(); draw();}});
 document.getElementById("fontColor").addEventListener("input", e=>{if(selected && selected.type==="text"){selected.color=e.target.value; saveHistory(); draw();}});
@@ -154,12 +192,7 @@ document.getElementById("strokeColor").addEventListener("input", e=>{if(selected
 document.getElementById("fontSelect").addEventListener("change", e=>{if(selected && selected.type==="text"){selected.font=e.target.value; saveHistory(); draw();}});
 document.getElementById("boldCheck").addEventListener("change", e=>{if(selected && selected.type==="text"){selected.bold=e.target.checked; saveHistory(); draw();}});
 document.getElementById("italicCheck").addEventListener("change", e=>{if(selected && selected.type==="text"){selected.italic=e.target.checked; saveHistory(); draw();}});
-
-function drawHandles(){if(!selected)return; ctx.save(); ctx.strokeStyle="blue"; ctx.lineWidth=2; 
-if(selected.type==="image") ctx.strokeRect(selected.x,selected.y,selected.w,selected.h);
-else if(selected.type==="text") ctx.strokeRect(selected.x,selected.y,ctx.measureText(selected.text).width,selected.size);
-ctx.restore();}
-
+document.getElementById("borderColor").addEventListener("input", e=>{if(selected){selected.border=e.target.value; saveHistory(); draw();}});
 </script>
 </body>
 </html>
