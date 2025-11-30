@@ -3,87 +3,308 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Image Editor – Resize, Move, Text, Sticker</title>
+  <title>Image Editor — Upload, Move, Resize, Text, Sticker, Export</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; background: #f3f3f3; }
-    .toolbar { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-    .panel { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    canvas { border: 1px solid #ccc; background: white; cursor: move; }
-    input[type=file] { padding: 5px; }
-    button { padding: 8px 12px; border: 0; background: #2563eb; color: white; border-radius: 6px; cursor: pointer; }
-    button.red { background:#dc2626 }
+    :root{--accent:#2563eb}
+    body{font-family:system-ui,Roboto,Arial;margin:18px;background:#f6f7fb;color:#111}
+    .wrap{max-width:980px;margin:0 auto}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .panel{background:#fff;padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(2,6,23,0.06)}
+    input[type=file]{display:inline-block}
+    button{background:var(--accent);color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
+    button.secondary{background:#374151}
+    .stage{display:flex;gap:12px}
+    #canvasWrap{background:#e9eef8;padding:12px;border-radius:8px}
+    canvas{background:#fff;border:1px solid #d1d5db;display:block;touch-action:none}
+    .sidebar{width:260px}
+    label{font-size:13px;display:block;margin-bottom:6px}
+    input[type=text], input[type=number], select{width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db}
+    .small{width:100px}
+    .hint{font-size:13px;color:#6b7280}
+    .handle{position:absolute;width:12px;height:12px;background:#fff;border:2px solid var(--accent);border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,0.15)}
   </style>
 </head>
 <body>
-  <h2>โปรแกรมแต่งรูป – ปรับขนาด, เลื่อนตำแหน่ง, ใส่สติ๊กเกอร์, พิมพ์ข้อความ</h2>
+  <div class="wrap">
+    <h2>Image Editor — อัปโหลด, เลื่อน, ย่อ/ขยาย, ใส่ข้อความ, ใส่สติ๊กเกอร์</h2>
 
-  <div class="panel toolbar">
-    <input id="uploadImage" type="file" accept="image/*" />
-    <button id="addTextBtn">เพิ่มข้อความ</button>
-    <button id="addStickerBtn">เพิ่มภาพตัดปะ</button>
-    <button id="downloadBtn">ดาวน์โหลดภาพ</button>
+    <div class="controls panel">
+      <input id="fileInput" type="file" accept="image/*">
+      <button id="addImageBtn">เพิ่มภาพ (จาก URL)</button>
+      <button id="addStickerBtn">เพิ่มสติ๊กเกอร์ (ไฟล์)</button>
+      <button id="addTextBtn">เพิ่มข้อความ</button>
+      <button id="exportPngBtn">ดาวน์โหลด PNG</button>
+      <button id="exportGifBtn">ดาวน์โหลด GIF</button>
+      <span class="hint">(รองรับลากภาพลงมาได้)</span>
+    </div>
+
+    <div class="stage">
+      <div id="canvasWrap" class="panel" style="position:relative;">
+        <canvas id="c" width="700" height="600"></canvas>
+        <!-- handles will be placed dynamically -->
+      </div>
+
+      <div class="sidebar panel">
+        <label>เลือกวัตถุ</label>
+        <div id="selectedInfo">ไม่มีสิ่งที่เลือก</div>
+        <hr>
+        <label>แก้ไขข้อความ (เมื่อเลือกข้อความ)</label>
+        <input id="textInput" type="text" placeholder="ข้อความ...">
+        <label>ขนาดตัวอักษร</label>
+        <input id="fontSize" type="number" value="36">
+        <label>สีตัวอักษร</label>
+        <input id="fontColor" type="text" value="#000000">
+        <hr>
+        <label>ปรับขนาด/ตำแหน่งแบบตัวเลข (เลือกวัตถุก่อน)</label>
+        <label>X</label><input id="posX" type="number">
+        <label>Y</label><input id="posY" type="number">
+        <label>Width</label><input id="posW" type="number">
+        <label>Height</label><input id="posH" type="number">
+        <button id="updateBtn" class="secondary" style="margin-top:8px">อัปเดต</button>
+      </div>
+    </div>
+
+    <p class="hint">หมายเหตุ: ทุกอย่างประมวลผลในเบราว์เซอร์ของคุณ — ไฟล์จะไม่ถูกส่งออกไปที่เซิร์ฟเวอร์</p>
   </div>
 
-  <div class="panel" style="padding:15px;">
-    <canvas id="editor" width="600" height="600"></canvas>
-  </div>
-
+  <!-- gif.js for GIF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
   <script>
-    const canvas = document.getElementById("editor");
-    const ctx = canvas.getContext("2d");
+    // Basic scene graph: objects array (images, stickers, texts)
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const fileInput = document.getElementById('fileInput');
+    const addImageBtn = document.getElementById('addImageBtn');
+    const addStickerBtn = document.getElementById('addStickerBtn');
+    const addTextBtn = document.getElementById('addTextBtn');
+    const exportPngBtn = document.getElementById('exportPngBtn');
+    const exportGifBtn = document.getElementById('exportGifBtn');
 
-    let objects = []; // เก็บเลเยอร์ทั้งหมด (ภาพ, ข้อความ, สติ๊กเกอร์)
+    let objects = [];
     let selected = null;
-    let offsetX = 0, offsetY = 0;
+    let drag = false;
+    let dragOffsetX = 0, dragOffsetY = 0;
+    let resizeHandle = null;
 
-    function drawAll() {
+    function redraw() {
       ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
       for (let obj of objects) {
-        if (obj.type === "image" || obj.type === "sticker") {
+        if (obj.type === 'image' || obj.type === 'sticker') {
           ctx.drawImage(obj.img, obj.x, obj.y, obj.w, obj.h);
-        } else if (obj.type === "text") {
-          ctx.font = obj.size + "px sans-serif";
+        } else if (obj.type === 'text') {
+          ctx.font = obj.size + 'px sans-serif';
           ctx.fillStyle = obj.color;
           ctx.fillText(obj.text, obj.x, obj.y);
         }
       }
+      drawSelection();
     }
 
-    function loadImage(file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const img = new Image();
-        img.onload = () => {
-          const scale = 400 / Math.max(img.width, img.height);
-          const w = img.width * scale;
-          const h = img.height * scale;
-          objects.push({type:"image", img, x:100, y:100, w, h});
-          drawAll();
-        }
-        img.src = e.target.result;
+    function drawSelection() {
+      // Remove previous handles
+      const existing = document.querySelectorAll('.handle');
+      existing.forEach(n=>n.remove());
+      if (!selected) return;
+      // draw border on canvas
+      ctx.save();
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(selected.x-4, selected.y-4, selected.w+8, selected.h+8);
+      ctx.restore();
+
+      // create handles (4 corners)
+      const wrap = document.getElementById('canvasWrap');
+      const handles = [ ['nw', selected.x-6, selected.y-6],
+                        ['ne', selected.x+selected.w-6, selected.y-6],
+                        ['sw', selected.x-6, selected.y+selected.h-6],
+                        ['se', selected.x+selected.w-6, selected.y+selected.h-6] ];
+      for (let h of handles) {
+        const el = document.createElement('div');
+        el.className = 'handle';
+        el.dataset.pos = h[0];
+        el.style.left = h[1] + 'px';
+        el.style.top = h[2] + 'px';
+        el.style.position = 'absolute';
+        el.style.zIndex = 9999;
+        wrap.appendChild(el);
+        el.addEventListener('pointerdown', handlePointerDown);
       }
+
+      // populate sidebar
+      document.getElementById('selectedInfo').textContent = selected.type;
+      document.getElementById('posX').value = Math.round(selected.x);
+      document.getElementById('posY').value = Math.round(selected.y);
+      document.getElementById('posW').value = Math.round(selected.w);
+      document.getElementById('posH').value = Math.round(selected.h);
+      if (selected.type === 'text') {
+        document.getElementById('textInput').value = selected.text;
+        document.getElementById('fontSize').value = selected.size;
+        document.getElementById('fontColor').value = selected.color;
+      }
+    }
+
+    // Utilities
+    function loadImageFromFile(file, callback) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => callback(img);
+        img.src = e.target.result;
+      };
       reader.readAsDataURL(file);
     }
 
-    document.getElementById("uploadImage").addEventListener("change", e => {
-      if (e.target.files[0]) loadImage(e.target.files[0]);
+    fileInput.addEventListener('change', e => {
+      const f = e.target.files[0]; if (!f) return;
+      loadImageFromFile(f, img => {
+        // add as background image sized to canvas
+        const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        objects.push({type:'image', img, x:(canvas.width-w)/2, y:(canvas.height-h)/2, w, h});
+        redraw();
+      });
     });
 
-    document.getElementById("addTextBtn").addEventListener("click", () => {
-      const text = prompt("พิมพ์ข้อความ:");
-      if (!text) return;
-      objects.push({type:"text", text, x:150, y:150, size:40, color:"#000"});
-      drawAll();
+    // drag & drop support
+    document.addEventListener('dragover', e=>e.preventDefault());
+    document.addEventListener('drop', e=>{
+      e.preventDefault();
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) loadImageFromFile(f, img=>{ const scale=Math.min(canvas.width/img.width, canvas.height/img.height); const w=img.width*scale; const h=img.height*scale; objects.push({type:'image', img, x:(canvas.width-w)/2, y:(canvas.height-h)/2, w,h}); redraw(); });
     });
 
-    document.getElementById("addStickerBtn").addEventListener("click", () => {
-      const url = prompt("วางลิงก์ภาพสติ๊กเกอร์ (PNG):");
-      if (!url) return;
-      const img = new Image();
-      img.onload = () => {
-        const w = img.width/2;
-        const h = img.height/2;
-        objects.push({type:"sticker", img, x:120, y:120, w, h});
-        drawAll();
+    // add image via URL
+    addImageBtn.addEventListener('click', ()=>{
+      const url = prompt('วาง URL ของภาพ:'); if (!url) return;
+      const img = new Image(); img.crossOrigin='anonymous'; img.onload=()=>{ const scale=Math.min(canvas.width/img.width, canvas.height/img.height); const w=img.width*scale; const h=img.height*scale; objects.push({type:'image', img, x:(canvas.width-w)/2, y:(canvas.height-h)/2, w,h}); redraw(); }; img.onerror=()=>alert('โหลดภาพจาก URL ไม่ได้'); img.src=url;
+    });
+
+    // add sticker from file
+    addStickerBtn.addEventListener('click', ()=>{
+      const tmp = document.createElement('input'); tmp.type='file'; tmp.accept='image/*'; tmp.onchange = e=>{ const f=e.target.files[0]; if (!f) return; loadImageFromFile(f, img=>{ const w = img.width/2; const h = img.height/2; objects.push({type:'sticker', img, x:50, y:50, w,h}); redraw(); }); }; tmp.click();
+    });
+
+    // add text
+    addTextBtn.addEventListener('click', ()=>{
+      const t = prompt('พิมพ์ข้อความ:'); if (!t) return; objects.push({type:'text', text:t, x:80, y:120, size:36, color:'#000', w:ctx.measureText(t).width, h:36}); redraw();
+    });
+
+    // selection test
+    function getAt(x,y) {
+      for (let i = objects.length-1; i >= 0; i--) {
+        const o = objects[i];
+        if (o.type === 'text') {
+          ctx.font = o.size + 'px sans-serif';
+          const w = ctx.measureText(o.text).width; const h = o.size;
+          if (x >= o.x && x <= o.x + w && y <= o.y && y >= o.y - h) return o;
+        } else {
+          if (x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h) return o;
+        }
       }
-      img.crossOrigin = "anonymous";
+      return null;
+    }
+
+    canvas.addEventListener('pointerdown', e => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+      const obj = getAt(x,y);
+      if (obj) {
+        selected = obj; drag = true; dragOffsetX = x - obj.x; dragOffsetY = y - obj.y; redraw();
+      } else { selected = null; redraw(); }
+    });
+
+    canvas.addEventListener('pointermove', e => {
+      if (!drag || !selected) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+      if (!resizeHandle) {
+        selected.x = x - dragOffsetX; selected.y = y - dragOffsetY; document.getElementById('posX').value = Math.round(selected.x); document.getElementById('posY').value = Math.round(selected.y); redraw();
+      } else {
+        // handled by handle events
+      }
+    });
+
+    canvas.addEventListener('pointerup', ()=>{ drag=false; resizeHandle=null; });
+
+    // handle resize pointer events
+    function handlePointerDown(ev) {
+      ev.stopPropagation(); ev.preventDefault();
+      resizeHandle = ev.target.dataset.pos;
+      const onMove = e => {
+        const rect = canvas.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+        if (!selected) return;
+        const ox = selected.x; const oy = selected.y; const ow = selected.w; const oh = selected.h;
+        if (resizeHandle === 'se') { selected.w = Math.max(10, x - selected.x); selected.h = Math.max(10, y - selected.y); }
+        if (resizeHandle === 'ne') { selected.w = Math.max(10, x - selected.x); const newH = Math.max(10, (selected.y+selected.h) - y); selected.h = newH; selected.y = (selected.y+selected.h) - newH; }
+        if (resizeHandle === 'sw') { const newW = Math.max(10, (selected.x+selected.w) - x); selected.w = newW; selected.x = (selected.x+selected.w) - newW; selected.h = Math.max(10, y - selected.y); }
+        if (resizeHandle === 'nw') { const newW = Math.max(10, (selected.x+selected.w) - x); const newH = Math.max(10, (selected.y+selected.h) - y); selected.x = (selected.x+selected.w) - newW; selected.y = (selected.y+selected.h) - newH; selected.w = newW; selected.h = newH; }
+        document.getElementById('posX').value = Math.round(selected.x); document.getElementById('posY').value = Math.round(selected.y); document.getElementById('posW').value = Math.round(selected.w); document.getElementById('posH').value = Math.round(selected.h);
+        redraw();
+      };
+      const onUp = () => { document.removeEventListener('pointermove', onMove); document.removeEventListener('pointerup', onUp); resizeHandle = null; };
+      document.addEventListener('pointermove', onMove); document.addEventListener('pointerup', onUp);
+    }
+
+    // attach handle events via delegation
+    document.getElementById('canvasWrap').addEventListener('pointerdown', e=>{
+      if (e.target.classList.contains('handle')) return; // handled separately
+    });
+
+    // sidebar updates
+    document.getElementById('updateBtn').addEventListener('click', ()=>{
+      if (!selected) return alert('เลือกวัตถุก่อน');
+      selected.x = Number(document.getElementById('posX').value)||selected.x;
+      selected.y = Number(document.getElementById('posY').value)||selected.y;
+      selected.w = Number(document.getElementById('posW').value)||selected.w;
+      selected.h = Number(document.getElementById('posH').value)||selected.h;
+      if (selected.type === 'text') { selected.text = document.getElementById('textInput').value; selected.size = Number(document.getElementById('fontSize').value)||selected.size; selected.color = document.getElementById('fontColor').value||selected.color; }
+      redraw();
+    });
+
+    // live text edit
+    document.getElementById('textInput').addEventListener('input', ()=>{
+      if (selected && selected.type === 'text') { selected.text = document.getElementById('textInput').value; redraw(); }
+    });
+
+    document.getElementById('fontSize').addEventListener('input', ()=>{ if (selected && selected.type==='text'){ selected.size = Number(document.getElementById('fontSize').value)||selected.size; redraw(); }});
+    document.getElementById('fontColor').addEventListener('input', ()=>{ if (selected && selected.type==='text'){ selected.color = document.getElementById('fontColor').value||selected.color; redraw(); }});
+
+    // export PNG
+    exportPngBtn.addEventListener('click', ()=>{
+      const a = document.createElement('a'); a.download = 'edited.png'; a.href = canvas.toDataURL('image/png'); a.click();
+    });
+
+    // export GIF (single frame) using gif.js
+    exportGifBtn.addEventListener('click', ()=>{
+      if (typeof GIF === 'undefined') return alert('ต้องเชื่อมต่ออินเทอร์เน็ตเพื่อโหลดไลบรารี GIF');
+      const gif = new GIF({ workers: 2, quality: 10, workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js' });
+      gif.addFrame(canvas, {copy:true, delay: 500});
+      gif.on('finished', blob => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'edited.gif'; a.click(); });
+      gif.render();
+    });
+
+    // initial blank canvas
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // expose redraw to global so handles can attach after objects change
+    window.redraw = redraw;
+
+    // click on handles: delegate attach
+    const wrap = document.getElementById('canvasWrap');
+    const observer = new MutationObserver(()=>{});
+
+    // simple loop to refresh handles (so when selected changes, handles are re-created)
+    setInterval(()=>{ drawSelection(); }, 250);
+
+    // Accessibility: keyboard delete selected
+    window.addEventListener('keydown', e=>{ if (e.key==='Delete' && selected){ objects = objects.filter(o=>o!==selected); selected=null; redraw(); } });
+
+    // touch-friendly: prevent scrolling on canvas touch
+    canvas.addEventListener('touchstart', e=>e.preventDefault(), {passive:false});
+
+  </script>
+</body>
+</html>
