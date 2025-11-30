@@ -8,23 +8,28 @@
 <style>
 body {margin:0; font-family:'Segoe UI', sans-serif; background:#f0f2f5;}
 header{padding:15px;text-align:center; background:#2563eb; color:white;}
-.container{display:flex; flex-wrap:wrap; gap:15px; padding:15px; max-width:1400px; margin:auto;}
+.container{display:flex; flex-direction:column; gap:15px; padding:15px; max-width:1200px; margin:auto;}
 .card{background:white; padding:15px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);}
-canvas{border:1px solid #ccc; cursor:pointer;}
+canvas{border:1px solid #ccc; cursor:pointer; max-width:100%;}
+.controls{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px;}
 button,input,select{margin:2px; padding:6px 10px; border-radius:6px; border:1px solid #ccc;}
 button{background:#2563eb; color:white; border:none; cursor:pointer;}
 button:hover{background:#1e40af;}
-.panel{display:flex; flex-direction:column; gap:5px; margin-bottom:10px;}
+.panel{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
 </style>
 </head>
 <body>
 <header><h2>Pro Image Editor 2025</h2></header>
 <div class="container">
-<div class="card" style="flex:2; min-width:700px;">
-<div class="panel">
-<input type="file" id="uploadImage" accept="image/*">
-<input type="file" id="uploadSticker" accept="image/*">
-<input type="text" id="imageURL" placeholder="วาง URL แล้ว Enter">
+
+<div class="card">
+<canvas id="canvas" width="800" height="600"></canvas>
+</div>
+
+<div class="card panel">
+<input type="file" id="uploadImage" accept="image/*" title="Upload รูป">
+<input type="file" id="uploadSticker" accept="image/*" title="Upload Sticker">
+<input type="text" id="imageURL" placeholder="วาง URL แล้ว Enter" title="นำเข้าจาก URL">
 <button onclick="addText()">เพิ่มข้อความ</button>
 <button onclick="deleteObject()">ลบวัตถุ</button>
 <button onclick="undo()">Undo</button>
@@ -33,7 +38,7 @@ button:hover{background:#1e40af;}
 <button onclick="downloadGIF()">ดาวน์โหลด GIF</button>
 </div>
 
-<div class="panel">
+<div class="card panel">
 <label>ข้อความ:</label>
 <input type="text" id="textInput" placeholder="แก้ข้อความ">
 <label>Font:</label>
@@ -49,13 +54,11 @@ button:hover{background:#1e40af;}
 <label>Opacity:</label><input type="range" id="opacityRange" min="0" max="1" step="0.05" value="1">
 </div>
 
-<canvas id="canvas" width="800" height="600"></canvas>
-</div>
-
-<div class="card" style="flex:1; min-width:220px;">
+<div class="card">
 <h3>Preview 200x200</h3>
 <canvas id="previewCanvas" width="200" height="200"></canvas>
 </div>
+
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
@@ -76,7 +79,7 @@ document.getElementById('uploadImage').addEventListener('change', e=>{
     const f = e.target.files[0]; if(!f)return;
     const reader=new FileReader(); reader.onload=function(ev){
         fabric.Image.fromURL(ev.target.result, img=>{
-            img.set({left:50, top:50, width:200, height:200, border:'', selectable:true});
+            img.set({left:50, top:50, width:200, height:200, selectable:true});
             canvas.add(img); saveHistory();
         }, {crossOrigin:'anonymous'});
     }; reader.readAsDataURL(f);
@@ -85,19 +88,19 @@ document.getElementById('uploadSticker').addEventListener('change', e=>{
     const f=e.target.files[0]; if(!f)return;
     const reader=new FileReader(); reader.onload=function(ev){
         fabric.Image.fromURL(ev.target.result, img=>{
-            img.set({left:100, top:100, width:100, height:100, border:'#00f', selectable:true});
+            img.set({left:100, top:100, width:100, height:100, selectable:true, stroke:'#00f', strokeWidth:2});
             canvas.add(img); saveHistory();
         }, {crossOrigin:'anonymous'});
     }; reader.readAsDataURL(f);
 });
 document.getElementById('imageURL').addEventListener('keydown', e=>{
     if(e.key==="Enter"){ const url=e.target.value.trim(); if(!url)return;
-        fabric.Image.fromURL(url,img=>{ img.set({left:50, top:50, width:150, height:150, border:'#00f'}); canvas.add(img); saveHistory(); drawPreview(); }, {crossOrigin:'anonymous'}); e.target.value=''; } 
+        fabric.Image.fromURL(url,img=>{ img.set({left:50, top:50, width:150, height:150, stroke:'#00f', strokeWidth:2}); canvas.add(img); saveHistory(); drawPreview(); }, {crossOrigin:'anonymous'}); e.target.value=''; } 
 });
 
 function addText(){
     const t=prompt("ข้อความ:"); if(!t)return;
-    const text=new fabric.Textbox(t,{left:50, top:50, fontSize:30, fill:'#f00', stroke:'#000', strokeWidth:1, fontFamily:'Arial', fontWeight:'normal', fontStyle:'normal', border:'', opacity:1});
+    const text=new fabric.Textbox(t,{left:50, top:50, fontSize:30, fill:'#f00', stroke:'#000', strokeWidth:1, fontFamily:'Arial', fontWeight:'normal', fontStyle:'normal', opacity:1});
     canvas.add(text); saveHistory();
 }
 
