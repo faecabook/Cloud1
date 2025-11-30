@@ -2,38 +2,34 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Image Editor + Resize + 200x200 Preview</title>
+<title>Image Editor + Fixed Resize + Border + Preview</title>
 <style>
-    body {
-        font-family: sans-serif;
-        display: flex;
-        gap: 20px;
-    }
-    #editorArea {
-        border: 1px solid #ccc;
-        position: relative;
-    }
-    canvas {
-        background: #f0f0f0;
-        cursor: pointer;
-    }
-    .handle {
-        width: 10px;
-        height: 10px;
-        background: #fff;
-        border: 2px solid #000;
-        position: absolute;
-    }
-    #previewBox {
-        border: 2px solid #000;
-        width: 200px;
-        height: 200px;
-        overflow: hidden;
-    }
-    #previewCanvas {
-        width: 200px;
-        height: 200px;
-    }
+body {
+    font-family: sans-serif;
+    display: flex;
+    gap: 20px;
+}
+#editorArea {
+    border: 1px solid #ccc;
+    position: relative;
+}
+canvas {
+    background: #f0f0f0;
+    cursor: pointer;
+}
+#previewBox {
+    border: 2px solid #000;
+    width: 200px;
+    height: 200px;
+    overflow: hidden;
+}
+#previewCanvas {
+    width: 200px;
+    height: 200px;
+}
+.controls {
+    margin-bottom: 10px;
+}
 </style>
 </head>
 <body>
@@ -41,13 +37,16 @@
 <div>
     <h3>ตัวแก้ไขรูป</h3>
 
-    <input type="file" id="uploadBackground" accept="image/*"><br><br>
-    <input type="file" id="uploadDecoration" accept="image/*"><br><br>
+    <div class="controls">
+        <input type="file" id="uploadBackground" accept="image/*"><br><br>
+        <input type="file" id="uploadDecoration" accept="image/*"><br><br>
 
-    <button onclick="addText()">เพิ่มข้อความ</button>
-    <button onclick="downloadImage()">ดาวน์โหลด PNG</button>
-
-    <br><br>
+        <label>ความกว้าง:</label><input type="number" id="fixedWidth" value="100">
+        <label>ความสูง:</label><input type="number" id="fixedHeight" value="100">
+        <label>สีกรอบ:</label><input type="color" id="borderColor" value="#ff0000">
+        <button onclick="addText()">เพิ่มข้อความ</button>
+        <button onclick="downloadImage()">ดาวน์โหลด PNG</button>
+    </div>
 
     <div id="editorArea">
         <canvas id="mainCanvas" width="500" height="500"></canvas>
@@ -67,13 +66,12 @@ let ctx = canvas.getContext("2d");
 let previewCanvas = document.getElementById("previewCanvas");
 let pctx = previewCanvas.getContext("2d");
 
-let objects = []; // all layers
+let objects = []; // เก็บทุก layer
 let selected = null;
 let dragOffsetX=0, dragOffsetY=0;
 let resizing=false;
-let resizeHandle=null;
 
-// โหลด background
+// อัปโหลด background
 document.getElementById("uploadBackground").addEventListener("change", e=>{
     let file=e.target.files[0];
     if(!file) return;
@@ -81,7 +79,7 @@ document.getElementById("uploadBackground").addEventListener("change", e=>{
     reader.onload=function(evt){
         let img=new Image();
         img.onload=function(){
-            objects[0]={type:"image", img:img, x:0,y:0,w:canvas.width,h:canvas.height};
+            objects[0]={type:"image", img:img, x:0, y:0, w:canvas.width, h:canvas.height, borderColor:""};
             draw();
         };
         img.src=evt.target.result;
@@ -89,7 +87,7 @@ document.getElementById("uploadBackground").addEventListener("change", e=>{
     reader.readAsDataURL(file);
 });
 
-// โหลด decoration
+// อัปโหลด decoration
 document.getElementById("uploadDecoration").addEventListener("change", e=>{
     let file=e.target.files[0];
     if(!file) return;
@@ -97,7 +95,10 @@ document.getElementById("uploadDecoration").addEventListener("change", e=>{
     reader.onload=function(evt){
         let img=new Image();
         img.onload=function(){
-            objects.push({type:"image", img:img, x:50, y:50, w:100, h:100});
+            const w = Number(document.getElementById("fixedWidth").value) || 100;
+            const h = Number(document.getElementById("fixedHeight").value) || 100;
+            const color = document.getElementById("borderColor").value;
+            objects.push({type:"image", img:img, x:50, y:50, w:w, h:h, borderColor:color});
             draw();
         };
         img.src=evt.target.result;
@@ -117,8 +118,14 @@ function addText(){
 function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
     for(let obj of objects){
-        if(obj.type==="image") ctx.drawImage(obj.img,obj.x,obj.y,obj.w,obj.h);
-        else if(obj.type==="text"){
+        if(obj.type==="image"){
+            ctx.drawImage(obj.img,obj.x,obj.y,obj.w,obj.h);
+            if(obj.borderColor){
+                ctx.strokeStyle=obj.borderColor;
+                ctx.lineWidth=4;
+                ctx.strokeRect(obj.x,obj.y,obj.w,obj.h);
+            }
+        }else if(obj.type==="text"){
             ctx.font=obj.size+"px Arial";
             ctx.fillStyle=obj.color;
             ctx.fillText(obj.text,obj.x,obj.y);
@@ -142,7 +149,7 @@ function downloadImage(){
     link.click();
 }
 
-// เลือกวัตถุ
+// เลือกและลาก
 canvas.addEventListener("mousedown", e=>{
     const rect=canvas.getBoundingClientRect();
     const mx=e.clientX-rect.left;
@@ -153,13 +160,10 @@ canvas.addEventListener("mousedown", e=>{
             selected=o;
             dragOffsetX=mx-o.x;
             dragOffsetY=my-o.y;
-            // check if near resize handle (bottom-right corner)
-            if(Math.abs(mx-(o.x+o.w))<10 && Math.abs(my-(o.y+o.h))<10){
-                resizing=true;
-            }
+            // check resize (ขนาดคงที่) — ใช้ fixed w/h จาก input
+            resizing=true;
             return;
-        }
-        else if(o.type==="text"){
+        }else if(o.type==="text"){
             ctx.font=o.size+"px Arial";
             const w=ctx.measureText(o.text).width;
             const h=o.size;
@@ -167,10 +171,7 @@ canvas.addEventListener("mousedown", e=>{
                 selected=o;
                 dragOffsetX=mx-o.x;
                 dragOffsetY=my-o.y;
-                // resize for text: just change size if near corner
-                if(Math.abs(mx-(o.x+w))<10 && Math.abs(my-(o.y))<10){
-                    resizing=true;
-                }
+                resizing=false;
                 return;
             }
         }
@@ -184,13 +185,12 @@ canvas.addEventListener("mousemove", e=>{
     const rect=canvas.getBoundingClientRect();
     const mx=e.clientX-rect.left;
     const my=e.clientY-rect.top;
-    if(resizing){
-        if(selected.type==="image"){
-            selected.w=Math.max(10,mx-selected.x);
-            selected.h=Math.max(10,my-selected.y);
-        }else if(selected.type==="text"){
-            selected.size=Math.max(10,my-selected.y);
-        }
+    if(resizing && selected.type==="image"){
+        const w = Number(document.getElementById("fixedWidth").value) || selected.w;
+        const h = Number(document.getElementById("fixedHeight").value) || selected.h;
+        selected.w = w;
+        selected.h = h;
+        selected.borderColor = document.getElementById("borderColor").value;
     }else{
         selected.x=mx-dragOffsetX;
         selected.y=my-dragOffsetY;
@@ -198,30 +198,29 @@ canvas.addEventListener("mousemove", e=>{
     draw();
 });
 
-canvas.addEventListener("mouseup", e=>{
-    selected=null; resizing=false;
-});
-
-canvas.addEventListener("mouseleave", e=>{
-    selected=null; resizing=false;
-});
+canvas.addEventListener("mouseup", e=>{ selected=null; resizing=false; });
+canvas.addEventListener("mouseleave", e=>{ selected=null; resizing=false; });
 
 // วาด handle มุมขวาล่าง
 function drawHandles(){
     if(!selected) return;
-    ctx.save();
-    ctx.strokeStyle="blue";
-    ctx.lineWidth=2;
     if(selected.type==="image"){
+        ctx.save();
+        ctx.strokeStyle="blue";
+        ctx.lineWidth=2;
         ctx.strokeRect(selected.x,selected.y,selected.w,selected.h);
         ctx.fillStyle="blue";
         ctx.fillRect(selected.x+selected.w-5,selected.y+selected.h-5,10,10);
+        ctx.restore();
     }else if(selected.type==="text"){
+        ctx.save();
+        ctx.strokeStyle="blue";
+        ctx.lineWidth=2;
         ctx.strokeRect(selected.x,selected.y-selected.size,ctx.measureText(selected.text).width,selected.size);
         ctx.fillStyle="blue";
         ctx.fillRect(selected.x+ctx.measureText(selected.text).width-5,selected.y-5,10,10);
+        ctx.restore();
     }
-    ctx.restore();
 }
 </script>
 
