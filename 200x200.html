@@ -4,158 +4,211 @@
 <meta charset="UTF-8">
 <title>Pro Image Editor 2025</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
 <style>
-body{margin:0;font-family:'Segoe UI',sans-serif;background:#181a1f;color:#eee;}
-header{padding:15px;text-align:center;background:#0d1117;color:white;}
-.container{display:flex;flex-direction:row;gap:15px;padding:15px;max-width:1400px;margin:auto;}
-.canvas-panel{flex:1; background:#1e1f25; padding:10px; border-radius:12px;}
-.sidebar{width:300px;background:#1c1d22;padding:15px;border-radius:12px;overflow-y:auto; max-height:90vh;}
-button,input,select{margin:2px;padding:6px 10px;border-radius:6px;border:none;background:#2563eb;color:white;cursor:pointer;}
-button:hover{background:#1e40af;}
-label{display:block;margin-top:10px;color:#aaa;font-size:13px;}
-canvas{border:1px solid #444; background:white; max-width:100%;}
+body {font-family:'Segoe UI', sans-serif; background:#f2f4f7; margin:0; padding:20px; display:flex; flex-direction:column; align-items:center;}
+h2 {text-align:center; color:#333;}
+.container {display:flex; flex-wrap:wrap; gap:20px; max-width:1200px;}
+.card {background:#fff; padding:15px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+canvas {border:1px solid #ccc; cursor:pointer; background:#fafafa;}
+button {background:#2563eb; color:white; border:none; padding:8px 14px; border-radius:8px; margin:2px; cursor:pointer;}
+button:hover {background:#1e40af;}
+#previewBox {width:200px; height:200px; border:2px solid #000; overflow:hidden;}
+.input-group {margin:5px 0;}
+.handle {width:10px;height:10px;background:blue;position:absolute;cursor:pointer;}
+.rotate-handle {width:12px;height:12px;background:red;border-radius:50%;position:absolute;cursor:pointer;}
 </style>
 </head>
 <body>
 
-<header><h1>Pro Image Editor 2025</h1></header>
+<h2>Pro Image Editor 2025</h2>
 <div class="container">
 
-<div class="canvas-panel">
-<canvas id="canvas" width="1000" height="600"></canvas>
+<div class="card" style="position:relative;">
+<h3>Editor</h3>
+<div class="input-group">
+<input type="file" id="uploadBackground" accept="image/*">
+</div>
+<div class="input-group">
+<input type="file" id="uploadDecoration" accept="image/*">
+</div>
+<div class="input-group">
+<input type="text" id="imageURL" placeholder="วาง URL ภาพแล้ว Enter">
+</div>
+<div class="input-group">
+<input type="color" id="borderColor" value="#ff0000"> เลือกสีกรอบสำหรับภาพใหม่
+</div>
+<button onclick="addText()">เพิ่มข้อความ</button>
+<button onclick="downloadPNG()">ดาวน์โหลด PNG</button>
+<button onclick="downloadGIF()">ดาวน์โหลด GIF</button>
+
+<canvas id="mainCanvas" width="700" height="500"></canvas>
+</div>
+
+<div class="card">
 <h3>Preview 200x200</h3>
+<div id="previewBox">
 <canvas id="previewCanvas" width="200" height="200"></canvas>
 </div>
-
-<div class="sidebar">
-<h3>Tools</h3>
-<input type="file" id="uploadImage" accept="image/*" title="Upload Image">
-<input type="file" id="uploadSticker" accept="image/*" title="Upload Sticker">
-<input type="text" id="imageURL" placeholder="นำเข้าจาก URL แล้ว Enter">
-<button onclick="addText()">เพิ่มข้อความ</button>
-<button onclick="deleteObject()">ลบวัตถุ</button>
-<button onclick="undo()">Undo</button>
-<button onclick="redo()">Redo</button>
-<hr>
-<h4>Text Settings</h4>
-<label>ข้อความ:</label><input type="text" id="textInput">
-<label>Font:</label>
-<select id="fontSelect"><option>Arial</option><option>Verdana</option><option>Tahoma</option><option>Georgia</option></select>
-<label>Size:</label><input type="number" id="fontSize" value="30">
-<label>Color:</label><input type="color" id="fontColor" value="#ff0000">
-<label>Stroke Color:</label><input type="color" id="strokeColor" value="#000000">
-<label>Bold:</label><input type="checkbox" id="boldCheck">
-<label>Italic:</label><input type="checkbox" id="italicCheck">
-<label>Opacity:</label><input type="range" id="opacityRange" min="0" max="1" step="0.05" value="1">
-<hr>
-<h4>Export</h4>
-<button onclick="downloadPNG()">PNG</button>
-<button onclick="downloadGIF()">GIF</button>
-<button onclick="downloadJPG()">JPG</button>
 </div>
 
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
 <script>
-const canvas = new fabric.Canvas('canvas', { preserveObjectStacking:true, selection:true });
-const preview = document.getElementById('previewCanvas');
-const pctx = preview.getContext('2d');
-let history=[], redoStack=[];
+const canvas=document.getElementById("mainCanvas"), ctx=canvas.getContext("2d");
+const previewCanvas=document.getElementById("previewCanvas"), pctx=previewCanvas.getContext("2d");
+let objects=[], selected=null, dragOffsetX=0, dragOffsetY=0;
+let resizing=false, resizeCorner=null, rotating=false;
+const borderColorInput=document.getElementById("borderColor");
 
-function saveHistory(){ history.push(JSON.stringify(canvas.toJSON())); if(history.length>100) history.shift(); redoStack=[]; }
-function undo(){ if(history.length>0){ redoStack.push(JSON.stringify(canvas.toJSON())); canvas.loadFromJSON(history.pop(), canvas.renderAll.bind(canvas)); }}
-function redo(){ if(redoStack.length>0){ history.push(JSON.stringify(canvas.toJSON())); canvas.loadFromJSON(redoStack.pop(), canvas.renderAll.bind(canvas)); }}
-
-canvas.on('object:added', saveHistory);
-canvas.on('object:modified', saveHistory);
-
-// **ฟังก์ชันเพิ่มภาพ (รองรับ Upload/Sticker/URL)**
-function addImageFromURL(url,left=50,top=50){
-    fabric.Image.fromURL(url, function(img){
-        img.set({ left:left, top:top, selectable:true });
-        // ปรับขนาดตามต้นฉบับ
-        img.scaleToWidth(img.width);
-        img.scaleToHeight(img.height);
-        canvas.add(img);
-        canvas.renderAll();
-        saveHistory();
-    }, {crossOrigin: 'anonymous'});
+function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for(let obj of objects){
+        ctx.save();
+        let cx=obj.x+obj.w/2, cy=obj.y+obj.h/2;
+        ctx.translate(cx,cy);
+        ctx.rotate((obj.angle||0)*Math.PI/180);
+        ctx.translate(-cx,-cy);
+        if(obj.type==="image") ctx.drawImage(obj.img,obj.x,obj.y,obj.w,obj.h);
+        else if(obj.type==="text"){ ctx.font=obj.size+"px Arial"; ctx.fillStyle=obj.color; ctx.fillText(obj.text,obj.x,obj.y);}
+        if(obj.border){
+            ctx.strokeStyle=obj.border; ctx.lineWidth=3;
+            ctx.strokeRect(obj.x,obj.y,obj.w,obj.h);
+        }
+        ctx.restore();
+    }
+    drawHandles();
+    updatePreview();
 }
 
-// Upload Image
-document.getElementById('uploadImage').addEventListener('change', e=>{
-    const f=e.target.files[0]; if(!f)return;
-    const reader=new FileReader(); 
-    reader.onload=function(ev){ addImageFromURL(ev.target.result); };
-    reader.readAsDataURL(f);
-});
-
-// Upload Sticker
-document.getElementById('uploadSticker').addEventListener('change', e=>{
-    const f=e.target.files[0]; if(!f)return;
-    const reader=new FileReader(); 
-    reader.onload=function(ev){ addImageFromURL(ev.target.result,100,100); };
-    reader.readAsDataURL(f);
-});
-
-// URL Input
-document.getElementById('imageURL').addEventListener('keydown', e=>{
-    if(e.key==="Enter"){ 
-        const url=e.target.value.trim(); 
-        if(!url)return;
-        addImageFromURL(url); e.target.value=''; 
-    }
-});
-
-// Text
-function addText(){
-    const t=prompt("ข้อความ:"); if(!t)return;
-    const text=new fabric.Textbox(t,{
-        left:50, top:50, fontSize:30, fill:'#f00', stroke:'#000', strokeWidth:1, fontFamily:'Arial', opacity:1
-    });
-    canvas.add(text);
+function updatePreview(){
+    pctx.clearRect(0,0,200,200);
+    pctx.drawImage(canvas,0,0,200,200);
 }
 
-// Delete object
-function deleteObject(){ const active=canvas.getActiveObject(); if(active){ canvas.remove(active); saveHistory(); }}
+function downloadPNG(){
+    let link=document.createElement("a");
+    link.download="edited.png";
+    link.href=canvas.toDataURL();
+    link.click();
+}
 
-// Text settings
-const updateTextProps = ()=>{
-    const obj = canvas.getActiveObject(); if(obj && obj.type==='textbox'){
-        obj.text = document.getElementById('textInput').value;
-        obj.fontFamily = document.getElementById('fontSelect').value;
-        obj.fontSize = parseInt(document.getElementById('fontSize').value);
-        obj.fill = document.getElementById('fontColor').value;
-        obj.stroke = document.getElementById('strokeColor').value;
-        obj.fontWeight = document.getElementById('boldCheck').checked?'bold':'normal';
-        obj.fontStyle = document.getElementById('italicCheck').checked?'italic':'normal';
-        obj.opacity = parseFloat(document.getElementById('opacityRange').value);
-        canvas.renderAll();
-    }
-};
-document.getElementById('textInput').addEventListener('input', updateTextProps);
-document.getElementById('fontSelect').addEventListener('change', updateTextProps);
-document.getElementById('fontSize').addEventListener('input', updateTextProps);
-document.getElementById('fontColor').addEventListener('input', updateTextProps);
-document.getElementById('strokeColor').addEventListener('input', updateTextProps);
-document.getElementById('boldCheck').addEventListener('change', updateTextProps);
-document.getElementById('italicCheck').addEventListener('change', updateTextProps);
-document.getElementById('opacityRange').addEventListener('input', updateTextProps);
-
-// Preview
-function drawPreview(){ pctx.clearRect(0,0,200,200); pctx.drawImage(canvas.lowerCanvasEl,0,0,200,200); }
-canvas.on('after:render', drawPreview);
-
-// Export
-function downloadPNG(){ const a=document.createElement('a'); a.href=canvas.toDataURL({format:'png'}); a.download='edited.png'; a.click(); }
-function downloadJPG(){ const a=document.createElement('a'); a.href=canvas.toDataURL({format:'jpeg', quality:0.95}); a.download='edited.jpg'; a.click(); }
 function downloadGIF(){
-    const gif=new GIF({workers:2,quality:10});
-    gif.addFrame(canvas.lowerCanvasEl,{copy:true,delay:500});
-    gif.on('finished', b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='edited.gif'; a.click(); });
+    let gif=new GIF({workers:2, quality:10});
+    gif.addFrame(canvas,{copy:true, delay:200});
+    gif.on('finished', blob=>{
+        let link=document.createElement("a");
+        link.href=URL.createObjectURL(blob);
+        link.download="edited.gif";
+        link.click();
+    });
     gif.render();
+}
+
+// โหลด Background
+document.getElementById("uploadBackground").addEventListener("change", e=>{
+    let file=e.target.files[0]; if(!file) return;
+    let reader=new FileReader();
+    reader.onload=function(evt){
+        let img=new Image(); img.onload=function(){
+            objects[0]={type:"image", img:img, x:0,y:0,w:canvas.width,h:canvas.height, angle:0};
+            draw();
+        }; img.src=evt.target.result;
+    }; reader.readAsDataURL(file);
+});
+
+// โหลด Decoration
+document.getElementById("uploadDecoration").addEventListener("change", e=>{
+    let file=e.target.files[0]; if(!file) return;
+    let reader=new FileReader();
+    reader.onload=function(evt){
+        let img=new Image(); img.onload=function(){
+            objects.push({type:"image", img:img, x:50,y:50,w:100,h:100, angle:0, border:borderColorInput.value});
+            draw();
+        }; img.src=evt.target.result;
+    }; reader.readAsDataURL(file);
+});
+
+// URL
+document.getElementById("imageURL").addEventListener("keydown", e=>{
+    if(e.key==="Enter"){
+        let url=e.target.value.trim(); if(!url) return;
+        let img=new Image(); img.crossOrigin="anonymous";
+        img.onload=function(){ objects.push({type:"image", img:img, x:50,y:50,w:100,h:100, angle:0, border:borderColorInput.value}); draw(); };
+        img.onerror=()=>alert("โหลดภาพจาก URL ไม่สำเร็จ"); img.src=url; e.target.value="";
+    }
+});
+
+// ข้อความ
+function addText(){
+    let text=prompt("พิมพ์ข้อความ:"); if(!text) return;
+    objects.push({type:"text", text:text, x:50,y:50, size:30, color:"red", angle:0});
+    draw();
+}
+
+// เลือก/ลาก/ย่อขยาย/หมุน
+canvas.addEventListener("mousedown", e=>{
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    selected=null; resizeCorner=null; rotating=false;
+    for(let i=objects.length-1;i>=0;i--){
+        const o=objects[i];
+        let cx=o.x+o.w/2, cy=o.y+o.h/2;
+        // Rotate handle (top center)
+        let rh={x:cx, y:o.y-20};
+        if(Math.hypot(mx-rh.x,my-rh.y)<10){ selected=o; rotating=true; return; }
+
+        // Corner resize
+        let corners=[
+            {x:o.x, y:o.y, pos:"nw"},
+            {x:o.x+o.w, y:o.y, pos:"ne"},
+            {x:o.x, y:o.y+o.h, pos:"sw"},
+            {x:o.x+o.w, y:o.y+o.h, pos:"se"}
+        ];
+        for(let c of corners){
+            if(Math.abs(mx-c.x)<10 && Math.abs(my-c.y)<10){ selected=o; resizing=true; resizeCorner=c.pos; return; }
+        }
+        if(mx>=o.x && mx<=o.x+o.w && my>=o.y && my<=o.y+o.h){ selected=o; dragOffsetX=mx-o.x; dragOffsetY=my-o.y; return; }
+    }
+    draw();
+});
+
+canvas.addEventListener("mousemove", e=>{
+    if(!selected) return;
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    if(resizing){
+        if(resizeCorner==="se"){ selected.w=Math.max(10,mx-selected.x); selected.h=Math.max(10,my-selected.y);}
+        if(resizeCorner==="sw"){ selected.w=Math.max(10,(selected.x+selected.w)-mx); selected.h=Math.max(10,my-selected.y); selected.x=(selected.x+selected.w)-selected.w;}
+        if(resizeCorner==="ne"){ selected.w=Math.max(10,mx-selected.x); selected.h=Math.max(10,(selected.y+selected.h)-my); selected.y=(selected.y+selected.h)-selected.h;}
+        if(resizeCorner==="nw"){ selected.w=Math.max(10,(selected.x+selected.w)-mx); selected.h=Math.max(10,(selected.y+selected.h)-my); selected.x=(selected.x+selected.w)-selected.w; selected.y=(selected.y+selected.h)-selected.h;}
+    } else if(rotating){
+        let cx=selected.x+selected.w/2, cy=selected.y+selected.h/2;
+        selected.angle=Math.atan2(my-cy,mx-cx)*180/Math.PI+90;
+    } else{
+        selected.x=mx-dragOffsetX; selected.y=my-dragOffsetY;
+    }
+    draw();
+});
+
+canvas.addEventListener("mouseup", e=>{ selected=null; resizing=false; rotating=false; resizeCorner=null; });
+canvas.addEventListener("mouseleave", e=>{ selected=null; resizing=false; rotating=false; resizeCorner=null; });
+
+// วาด handles + rotate handle
+function drawHandles(){
+    if(!selected) return;
+    ctx.save(); ctx.strokeStyle="blue"; ctx.lineWidth=2;
+    ctx.strokeRect(selected.x,selected.y,selected.w,selected.h);
+    let corners=[
+        [selected.x,selected.y],
+        [selected.x+selected.w,selected.y],
+        [selected.x,selected.y+selected.h],
+        [selected.x+selected.w,selected.y+selected.h]
+    ];
+    for(let c of corners){ ctx.fillStyle="blue"; ctx.fillRect(c[0]-5,c[1]-5,10,10);}
+    // Rotate handle
+    ctx.fillStyle="red"; ctx.beginPath(); ctx.arc(selected.x+selected.w/2, selected.y-20,6,0,Math.PI*2); ctx.fill();
+    ctx.restore();
 }
 </script>
 </body>
