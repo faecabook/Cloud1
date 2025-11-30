@@ -2,14 +2,13 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Advanced Image Editor with Optional Border</title>
+<title>Image Editor with Border Toggle & Delete</title>
 <style>
 body { font-family:sans-serif; display:flex; gap:20px; }
 #editorArea { border:1px solid #ccc; position:relative; }
 canvas { background:#f0f0f0; cursor:pointer; }
 #previewBox { border:2px solid #000; width:200px; height:200px; overflow:hidden; }
 #previewCanvas { width:200px; height:200px; }
-.sidebar { margin-top:10px; }
 </style>
 </head>
 <body>
@@ -23,8 +22,8 @@ canvas { background:#f0f0f0; cursor:pointer; }
 <input type="file" id="uploadImage3" accept="image/*"><br><br>
 
 <label><input type="checkbox" id="keepAspect"> คงอัตราส่วนเดิม</label><br>
-<label>สีกรอบ: <input type="color" id="borderColor" value="#000000"></label><br>
-<label>แสดงกรอบ: <input type="checkbox" id="showBorder"></label><br><br>
+<label><input type="checkbox" id="toggleBorder"> แสดง/ซ่อนกรอบวัตถุ</label><br>
+<input type="color" id="borderColor" value="#000000"> เลือกสีกรอบ<br><br>
 
 <button onclick="addText()">เพิ่มข้อความ</button>
 <button onclick="downloadImage()">ดาวน์โหลด PNG</button>
@@ -89,17 +88,18 @@ document.getElementById("uploadBackground").addEventListener("change",e=>{
 function addText(){
     let text=prompt("พิมพ์ข้อความ:");
     if(!text) return;
-    objects.push({type:"text", text:text, x:50, y:50, size:30, color:"red", border:false, borderColor:"#000"});
+    objects.push({type:"text", text:text, x:50, y:50, size:30, color:"red", border:true, borderColor:"#000"});
     draw();
 }
 
 // วาด layer + preview
 function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
+    let showBorder=document.getElementById("toggleBorder").checked;
     for(let obj of objects){
         if(obj.type==="image"){
             ctx.drawImage(obj.img,obj.x,obj.y,obj.w,obj.h);
-            if(obj.border){
+            if(obj.border && showBorder){
                 ctx.strokeStyle=obj.borderColor;
                 ctx.lineWidth=3;
                 ctx.strokeRect(obj.x,obj.y,obj.w,obj.h);
@@ -108,7 +108,7 @@ function draw(){
             ctx.font=obj.size+"px Arial";
             ctx.fillStyle=obj.color;
             ctx.fillText(obj.text,obj.x,obj.y);
-            if(obj.border){
+            if(obj.border && showBorder){
                 ctx.strokeStyle=obj.borderColor;
                 ctx.lineWidth=2;
                 ctx.strokeRect(obj.x,obj.y-obj.size,ctx.measureText(obj.text).width,obj.size);
@@ -146,7 +146,6 @@ canvas.addEventListener("mousedown", e=>{
             dragOffsetY=my-o.y;
             aspectRatio=o.w/o.h;
             if(Math.abs(mx-(o.x+o.w))<10 && Math.abs(my-(o.y+o.h))<10) resizing=true;
-            updateSidebar();
             return;
         }
         else if(o.type==="text"){
@@ -159,13 +158,11 @@ canvas.addEventListener("mousedown", e=>{
                 dragOffsetY=my-o.y;
                 aspectRatio=w/h;
                 if(Math.abs(mx-(o.x+w))<10 && Math.abs(my-(o.y))<10) resizing=true;
-                updateSidebar();
                 return;
             }
         }
     }
     selected=null;
-    updateSidebar();
     draw();
 });
 
@@ -222,29 +219,20 @@ function drawHandles(){
     ctx.restore();
 }
 
-// Sidebar / Controls
-let borderColorInput=document.getElementById("borderColor");
-let showBorderInput=document.getElementById("showBorder");
-
-borderColorInput.addEventListener("input", e=>{
+// เปลี่ยนสีกรอบ
+document.getElementById("borderColor").addEventListener("input", e=>{
     if(selected) selected.borderColor=e.target.value;
     draw();
 });
 
-showBorderInput.addEventListener("change", e=>{
-    if(selected) selected.border=e.target.checked;
-    draw();
-});
-
-// update sidebar state
-function updateSidebar(){
-    if(selected){
-        borderColorInput.value=selected.borderColor;
-        showBorderInput.checked=selected.border;
-    } else {
-        showBorderInput.checked=false;
+// ลบวัตถุด้วย Delete
+window.addEventListener("keydown", e=>{
+    if(e.key==="Delete" && selected){
+        objects = objects.filter(o => o!==selected);
+        selected=null;
+        draw();
     }
-}
+});
 </script>
 
 </body>
