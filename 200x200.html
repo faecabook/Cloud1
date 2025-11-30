@@ -2,13 +2,14 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Advanced Image Editor</title>
+<title>Advanced Image Editor with Optional Border</title>
 <style>
 body { font-family:sans-serif; display:flex; gap:20px; }
 #editorArea { border:1px solid #ccc; position:relative; }
 canvas { background:#f0f0f0; cursor:pointer; }
 #previewBox { border:2px solid #000; width:200px; height:200px; overflow:hidden; }
 #previewCanvas { width:200px; height:200px; }
+.sidebar { margin-top:10px; }
 </style>
 </head>
 <body>
@@ -22,7 +23,8 @@ canvas { background:#f0f0f0; cursor:pointer; }
 <input type="file" id="uploadImage3" accept="image/*"><br><br>
 
 <label><input type="checkbox" id="keepAspect"> คงอัตราส่วนเดิม</label><br>
-<input type="color" id="borderColor" value="#000000"> เลือกสีกรอบ<br><br>
+<label>สีกรอบ: <input type="color" id="borderColor" value="#000000"></label><br>
+<label>แสดงกรอบ: <input type="checkbox" id="showBorder"></label><br><br>
 
 <button onclick="addText()">เพิ่มข้อความ</button>
 <button onclick="downloadImage()">ดาวน์โหลด PNG</button>
@@ -46,13 +48,13 @@ let ctx=canvas.getContext("2d");
 let previewCanvas=document.getElementById("previewCanvas");
 let pctx=previewCanvas.getContext("2d");
 
-let objects=[]; // all layers
+let objects=[]; 
 let selected=null;
 let dragOffsetX=0, dragOffsetY=0;
 let resizing=false;
 let aspectRatio=1;
 
-// ฟังก์ชันเพิ่มรูป
+// โหลดรูป
 function loadImage(file, callback){
     if(!file) return;
     let reader=new FileReader();
@@ -144,6 +146,7 @@ canvas.addEventListener("mousedown", e=>{
             dragOffsetY=my-o.y;
             aspectRatio=o.w/o.h;
             if(Math.abs(mx-(o.x+o.w))<10 && Math.abs(my-(o.y+o.h))<10) resizing=true;
+            updateSidebar();
             return;
         }
         else if(o.type==="text"){
@@ -156,11 +159,13 @@ canvas.addEventListener("mousedown", e=>{
                 dragOffsetY=my-o.y;
                 aspectRatio=w/h;
                 if(Math.abs(mx-(o.x+w))<10 && Math.abs(my-(o.y))<10) resizing=true;
+                updateSidebar();
                 return;
             }
         }
     }
     selected=null;
+    updateSidebar();
     draw();
 });
 
@@ -217,11 +222,29 @@ function drawHandles(){
     ctx.restore();
 }
 
-// เปลี่ยนสีกรอบ
-document.getElementById("borderColor").addEventListener("input", e=>{
+// Sidebar / Controls
+let borderColorInput=document.getElementById("borderColor");
+let showBorderInput=document.getElementById("showBorder");
+
+borderColorInput.addEventListener("input", e=>{
     if(selected) selected.borderColor=e.target.value;
     draw();
 });
+
+showBorderInput.addEventListener("change", e=>{
+    if(selected) selected.border=e.target.checked;
+    draw();
+});
+
+// update sidebar state
+function updateSidebar(){
+    if(selected){
+        borderColorInput.value=selected.borderColor;
+        showBorderInput.checked=selected.border;
+    } else {
+        showBorderInput.checked=false;
+    }
+}
 </script>
 
 </body>
