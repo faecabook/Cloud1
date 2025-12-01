@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ร้าน Shopee ของฉัน</title>
+  <title>ร้านของฉัน</title>
   <style>
     body {
       font-family: "Noto Sans Thai", sans-serif;
@@ -33,6 +33,8 @@
       line-height: 1.5;
     }
     button {
+      width: 80%;
+      max-width: 320px;
       background: linear-gradient(90deg, #ee4d2d, #d73211);
       color: white;
       border: none;
@@ -40,9 +42,13 @@
       padding: 14px 20px;
       font-size: 1rem;
       cursor: pointer;
+      margin: 6px 0;
       transition: transform 0.2s;
     }
     button:hover { transform: scale(1.05); }
+    .btn-lazada {
+      background: linear-gradient(90deg, #0f9dff, #005bbb);
+    }
     small {
       display:block;
       margin-top:16px;
@@ -51,35 +57,45 @@
   </style>
 </head>
 <body>
-  <img src="https://cdn-icons-png.flaticon.com/512/3670/3670322.png" alt="Shopee Logo">
-  <h1>ร้าน Shopee ของฉัน</h1>
-  <p id="message">กำลังตรวจสอบการเชื่อมต่อ...</p>
-  <button id="openButton" style="display:none;">เปิดในแอป Shopee</button>
-  <small>ถ้าไม่มีแอป ระบบจะพาคุณไปยังหน้าร้านโดยอัตโนมัติ</small>
+  <img src="https://cdn-icons-png.flaticon.com/512/3670/3670322.png" alt="Shop Logo">
+  <h1>ร้านของฉัน</h1>
+  <p id="message">กำลังตรวจสอบ...</p>
+
+  <!-- ปุ่มเปิด Shopee -->
+  <button id="openShopee" style="display:none;">เปิดร้านในแอป Shopee</button>
+
+  <!-- ปุ่มไป Lazada -->
+  <button id="openLazada" class="btn-lazada">ไปยังร้านค้าใน Lazada</button>
+
+  <small>ถ้าไม่พบแอป Shopee ระบบจะพาไปยังเว็บ</small>
 
   <script>
-    const shopUrl = "https://s.shopee.co.th/7KoJhT5zjg";
-    const message = document.getElementById("message");
-    const button = document.getElementById("openButton");
+    const shopShopee = "https://s.shopee.co.th/7KoJhT5zjg";
+    const shopLazada = "https://s.lazada.co.th/s.Z0X5YO";
 
-    // ตรวจว่าเปิดจากแอป Facebook หรือ Instagram หรือไม่
+    const message = document.getElementById("message");
+    const shopeeButton = document.getElementById("openShopee");
+    const lazadaButton = document.getElementById("openLazada");
+
     const ua = navigator.userAgent;
     const isFacebook = ua.includes("FBAN") || ua.includes("FBAV") || ua.includes("Instagram");
 
+    // ปุ่ม Lazada — เปิดได้ทุกที่
+    lazadaButton.addEventListener("click", () => {
+      window.location.href = shopLazada;
+    });
+
     if (isFacebook) {
-      // ถ้าเปิดใน Facebook → แสดงปุ่มให้เปิดภายนอก
-      message.textContent = "⚠️ คุณเปิดลิงก์นี้จากแอป Facebook";
-      button.textContent = "เปิดในเบราว์เซอร์ภายนอก (Chrome / Safari)";
-      button.style.display = "inline-block";
-
-      button.addEventListener("click", () => {
-        // ใช้วิธีเปิดแท็บใหม่ เพื่อออกจาก In-App Browser
-        window.open(shopUrl, "_blank");
+      // ถ้าเปิดใน Facebook
+      message.textContent = "⚠️ คุณกำลังเปิดลิงก์จากแอป Facebook / Instagram";
+      shopeeButton.style.display = "inline-block";
+      shopeeButton.textContent = "เปิดในเบราว์เซอร์ภายนอก (Chrome / Safari)";
+      shopeeButton.addEventListener("click", () => {
+        window.open(shopShopee, "_blank");
       });
-
     } else {
-      // ถ้าไม่ใช่ Facebook → พยายามเปิดแอป Shopee
-      message.textContent = "กำลังเปิดแอป Shopee...";
+      // ถ้าเปิดใน Chrome/Safari — เด้งแอป Shopee อัตโนมัติ
+      message.textContent = "กำลังพยายามเปิดแอป Shopee...";
       const timeout = 1500;
       let opened = false;
 
@@ -88,12 +104,10 @@
       };
       document.addEventListener("visibilitychange", handleVisibility);
 
-      // Android ใช้ intent://
       if (/Android/i.test(ua)) {
         const intentUrl = "intent://open#Intent;scheme=shopee;package=com.shopee.th;end";
         window.location = intentUrl;
       } else {
-        // iOS ใช้ iframe trick
         const iframe = document.createElement("iframe");
         iframe.style.display = "none";
         iframe.src = "shopee://";
@@ -103,12 +117,11 @@
         }, 2000);
       }
 
-      // ถ้าไม่มีแอป ให้ไปเว็บร้าน
       setTimeout(() => {
         document.removeEventListener("visibilitychange", handleVisibility);
         if (!opened) {
-          message.textContent = "ไม่พบแอป Shopee — กำลังไปยังเว็บร้านของคุณ...";
-          window.location.href = shopUrl;
+          message.textContent = "ไม่พบแอป Shopee → พาไปหน้าเว็บร้านแทน...";
+          window.location.href = shopShopee;
         } else {
           message.textContent = "เปิดแอป Shopee สำเร็จ ✓";
         }
