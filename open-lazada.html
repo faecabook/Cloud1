@@ -36,4 +36,51 @@
       background: linear-gradient(90deg, #ee4d2d, #d73211);
       color: white;
       border: none;
-      border-r
+      border-radius: 10px;
+      padding: 14px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.2s;
+      margin-top: 10px;
+      width: 260px;
+      max-width: 90%;
+    }
+    button:hover { transform: scale(1.05); }
+
+    .lazada-btn {
+      background: linear-gradient(90deg, #1a75ff, #0047cc);
+    }
+  </style>
+</head>
+<body>
+  <img src="https://cdn-icons-png.flaticon.com/512/3670/3670322.png">
+  <h1>เลือกร้านที่ต้องการเปิด</h1>
+
+  <button id="openShopee">เปิด Shopee</button>
+  <button id="openLazada" class="lazada-btn">เปิด Lazada</button>
+
+  <script>
+    const shopeeLink = "https://s.shopee.co.th/7KoJhT5zjg";
+    const lazadaLink = "https://s.lazada.co.th/s.Z0X5YO";
+
+    document.getElementById("openShopee").onclick = () => {
+      // พยายามเปิดแอป Shopee แบบปลอดภัย ไม่ทำให้เว็บพัง
+      if (/Android/i.test(navigator.userAgent)) {
+        window.location.href = "intent://open#Intent;scheme=shopee;package=com.shopee.th;end";
+      } else {
+        window.location.href = "shopee://";
+      }
+
+      // ถ้าไม่มีแอป → ไปเว็บหลัง 1.2 วิ
+      setTimeout(() => {
+        window.location.href = shopeeLink;
+      }, 1200);
+    };
+
+    document.getElementById("openLazada").onclick = () => {
+      window.location.href = lazadaLink;
+    };
+  </script>
+
+</body>
+</html>
