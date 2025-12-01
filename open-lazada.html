@@ -41,40 +41,79 @@
       font-size: 1rem;
       cursor: pointer;
       transition: transform 0.2s;
-      margin-top: 10px;
-      width: 260px;
-      max-width: 90%;
     }
     button:hover { transform: scale(1.05); }
+    small {
+      display:block;
+      margin-top:16px;
+      color:#777;
+    }
   </style>
 </head>
 <body>
-
-  <img src="https://cdn-icons-png.flaticon.com/512/3670/3670322.png">
+  <img src="https://cdn-icons-png.flaticon.com/512/3670/3670322.png" alt="Shopee Logo">
   <h1>ร้าน Shopee ของฉัน</h1>
-  <p>กดปุ่มด้านล่างเพื่อเปิดร้านในแอป Shopee</p>
-
-  <button id="openShopee">เปิดในแอป Shopee</button>
+  <p id="message">กำลังตรวจสอบการเชื่อมต่อ...</p>
+  <button id="openButton" style="display:none;">เปิดในแอป Shopee</button>
+  <small>ถ้าไม่มีแอป ระบบจะพาคุณไปยังหน้าร้านโดยอัตโนมัติ</small>
 
   <script>
     const shopUrl = "https://s.shopee.co.th/7KoJhT5zjg";
+    const message = document.getElementById("message");
+    const button = document.getElementById("openButton");
 
-    document.getElementById("openShopee").onclick = () => {
+    // ตรวจว่าเปิดจากแอป Facebook หรือ Instagram หรือไม่
+    const ua = navigator.userAgent;
+    const isFacebook = ua.includes("FBAN") || ua.includes("FBAV") || ua.includes("Instagram");
 
-      let fallback = setTimeout(() => {
-        window.location.href = shopUrl; // ถ้าไม่มีแอป → ไปเว็บ
-      }, 1200);
+    if (isFacebook) {
+      // ถ้าเปิดใน Facebook → แสดงปุ่มให้เปิดภายนอก
+      message.textContent = "⚠️ คุณเปิดลิงก์นี้จากแอป Facebook";
+      button.textContent = "เปิดในเบราว์เซอร์ภายนอก (Chrome / Safari)";
+      button.style.display = "inline-block";
 
-      if (/Android/i.test(navigator.userAgent)) {
-        // Android → เปิดแอปด้วย intent://
-        window.location.href =
-          "intent://open#Intent;scheme=shopee;package=com.shopee.th;end";
+      button.addEventListener("click", () => {
+        // ใช้วิธีเปิดแท็บใหม่ เพื่อออกจาก In-App Browser
+        window.open(shopUrl, "_blank");
+      });
+
+    } else {
+      // ถ้าไม่ใช่ Facebook → พยายามเปิดแอป Shopee
+      message.textContent = "กำลังเปิดแอป Shopee...";
+      const timeout = 1500;
+      let opened = false;
+
+      const handleVisibility = () => {
+        if (document.hidden) opened = true;
+      };
+      document.addEventListener("visibilitychange", handleVisibility);
+
+      // Android ใช้ intent://
+      if (/Android/i.test(ua)) {
+        const intentUrl = "intent://open#Intent;scheme=shopee;package=com.shopee.th;end";
+        window.location = intentUrl;
       } else {
-        // iOS → เปิดแอปด้วย URL scheme
-        window.location.href = "shopee://";
+        // iOS ใช้ iframe trick
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = "shopee://";
+        document.body.appendChild(iframe);
+        setTimeout(() => {
+          try { document.body.removeChild(iframe); } catch(e){}
+        }, 2000);
       }
-    };
-  </script>
 
+      // ถ้าไม่มีแอป ให้ไปเว็บร้าน
+      setTimeout(() => {
+        document.removeEventListener("visibilitychange", handleVisibility);
+        if (!opened) {
+          message.textContent = "ไม่พบแอป Shopee — กำลังไปยังเว็บร้านของคุณ...";
+          window.location.href = shopUrl;
+        } else {
+          message.textContent = "เปิดแอป Shopee สำเร็จ ✓";
+        }
+      }, timeout);
+    }
+  </script>
 </body>
 </html>
