@@ -1,0 +1,58 @@
+// 1. ส่วนหน้าขาว (White Page) ที่บอทเห็น - เป็นหน้าว่างแต่มีรูปพรีวิวใหม่
+const whitePageHTML = `<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lifestyle & Health</title>
+    
+    <meta property="og:title" content="ด่วน! ล่าสุดเรียบร้อยไปแล้ว">
+    <meta property="og:description" content="ด่วน! ล่าสุดเรียบร้อยไปแล้ว">
+    <meta property="og:image" content="https://pub-7830b832a28e48c8938699ae81a469ac.r2.dev/playxxxxxxxxx-1.gif">
+    <meta property="og:image:type" content="image/gif">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:type" content="website">
+
+    <style>
+        body { background-color: #ffffff; margin: 0; padding: 0; }
+    </style>
+</head>
+<body>
+    </body>
+</html>`;
+
+// 2. ส่วนระบบประมวลผล (Logic)
+export default {
+  async fetch(request) {
+    const userAgent = request.headers.get("User-Agent") || "";
+    const asn = request.cf ? request.cf.asn : 0;
+    const destination = "https://s.shopee.co.th/8AP3HckD7A"; // ลิงก์ Shopee ของคุณ
+
+    // เช็คว่าเป็นบอท Facebook หรือไม่
+    const isFacebookBot = asn === 32934 || userAgent.includes("facebookexternalhit");
+
+    if (isFacebookBot) {
+      // ส่งหน้าว่างที่มี Meta Tags รูปใหม่ให้บอท
+      return new Response(whitePageHTML, {
+        headers: { "Content-Type": "text/html;charset=UTF-8" },
+      });
+    }
+
+    // สำหรับคนคนทั่วไป ให้ดีดไป Shopee ทันที
+    return new Response(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta http-equiv="refresh" content="0;url=${destination}">
+          <script type="text/javascript">
+            window.location.replace("${destination}");
+          </script>
+        </head>
+        <body style="background:#fff;"></body>
+      </html>`, {
+      headers: { "Content-Type": "text/html;charset=UTF-8" },
+    });
+  }
+};
