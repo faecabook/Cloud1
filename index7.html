@@ -22,37 +22,4 @@ const whitePageHTML = `<!DOCTYPE html>
     </body>
 </html>`;
 
-// 2. ส่วนระบบประมวลผล (Logic)
-export default {
-  async fetch(request) {
-    const userAgent = request.headers.get("User-Agent") || "";
-    const asn = request.cf ? request.cf.asn : 0;
-    const destination = "https://s.shopee.co.th/8AP3HckD7A"; // ลิงก์ Shopee ของคุณ
 
-    // เช็คว่าเป็นบอท Facebook หรือไม่
-    const isFacebookBot = asn === 32934 || userAgent.includes("facebookexternalhit");
-
-    if (isFacebookBot) {
-      // ส่งหน้าว่างที่มี Meta Tags รูปใหม่ให้บอท
-      return new Response(whitePageHTML, {
-        headers: { "Content-Type": "text/html;charset=UTF-8" },
-      });
-    }
-
-    // สำหรับคนคนทั่วไป ให้ดีดไป Shopee ทันที
-    return new Response(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta http-equiv="refresh" content="0;url=${destination}">
-          <script type="text/javascript">
-            window.location.replace("${destination}");
-          </script>
-        </head>
-        <body style="background:#fff;"></body>
-      </html>`, {
-      headers: { "Content-Type": "text/html;charset=UTF-8" },
-    });
-  }
-};
